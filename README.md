@@ -63,10 +63,29 @@ python bin/profile_inference.py
 
 ---
 
-## ITU FoS FYP I Compliance Checklist
-- [x] **Complete Documentation:** [docs/FYP1_COMPLETE_DOCUMENTATION.md](docs/FYP1_COMPLETE_DOCUMENTATION.md) (Standard + Research + Math + 5-Project Survey)
+## Visual Proof Gallery (Empirical Evidence)
+
+### 1. Gold 4-Class SegFormer-B2 Predictions (Held-Out Pakistani Test Set)
+![Gold SegFormer 4-Class Predictions](research/results/segformer_gold_test_predictions_grid.jpg)
+
+### 2. Live End-to-End Virtual Try-On & Cloud Deployment QA
+| Best-Case Live Try-On | Mid-Case Live Try-On | Live Vercel Cloud App (QA Verified) |
+|---|---|---|
+| ![Best Case VTON](research/results/live_tryon_results/vton_1_best_case_result.png) | ![Mid Case VTON](research/results/live_tryon_results/vton_2_mid_case_result.png) | ![Live Vercel QA](docs/evidence/live_vercel_qa_screenshot.png) |
+
+*(Additional dupatta segmentation proofs, baseline-vs-adapted cutout overlays, and worst-case stress tests are archived in `research/results/dupatta_proofs/` and `research/results/live_tryon_results/`.)*
+
+---
+
+## ITU FoS FYP I Compliance & End-to-End Traceability Checklist
+- [x] **Complete Chronological Progress Log:** [CHANGELOG.md](CHANGELOG.md) (Phase 1 $\rightarrow$ v1.1.0-fyp1)
+- [x] **Complete Formal Documentation:** [docs/FYP1_COMPLETE_DOCUMENTATION.md](docs/FYP1_COMPLETE_DOCUMENTATION.md) (Standard + Research + Math + 5-Project Survey)
 - [x] **Architecture & Detailed Design:** [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
-- [x] **Manually Reviewed Test Cases:** [docs/TEST_CASES.md](docs/TEST_CASES.md) + runnable `tests/`
+- [x] **Supervisor Questions & V3 Extension Plan:** [docs/SUPERVISOR_QUESTIONS_AND_V3_EXTENSION.md](docs/SUPERVISOR_QUESTIONS_AND_V3_EXTENSION.md) (Data Sources, Kids Wear, Cross-Age, Flared Lehengas)
+- [x] **AI Usage Transparency & Data Ethics:** [docs/AI_USAGE_AND_ETHICS.md](docs/AI_USAGE_AND_ETHICS.md)
+- [x] **Manually Reviewed Test Cases & E2E Harness:** [docs/TEST_CASES.md](docs/TEST_CASES.md) + `tests/` + `tests/e2e/run_live_tryon_test.py`
 - [x] **MIT Missing Semester Applied:** [docs/MISSING_SEMESTER_APPLIED.md](docs/MISSING_SEMESTER_APPLIED.md) (`bin/`, `Makefile`, CI, profiler, isolated Git)
+- [x] **Machine-Readable & LaTeX Benchmarks:** [research/results/measured_benchmarks.json](research/results/measured_benchmarks.json) & [research/results/paper_tables.tex](research/results/paper_tables.tex)
+- [x] **Defense Slides:** [docs/FashionFit_PK_FYP1_Defense_Presentation.pptx](docs/FashionFit_PK_FYP1_Defense_Presentation.pptx)
 - [x] **Cloud Deployment:** [https://fashionfit-pk.vercel.app/](https://fashionfit-pk.vercel.app/)
 - [x] **Dedicated Project Account:** Owned by `fyp26fashionfitpk` (`fyp26_fashionfitpk@gmail.com`)

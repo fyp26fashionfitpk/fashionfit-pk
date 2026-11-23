@@ -1,0 +1,36 @@
+% FashionFit-PK — Measured Benchmark Tables (LaTeX)
+% All figures are empirically measured on zero-leakage unseen-SKU held-out splits.
+
+\begin{table}[t]
+\centering
+\caption{4-Class Pakistani Semantic Segmentation IoU (\%) on the Gold Human-Verified Held-Out Test Set.}
+\label{tab:segformer_4class}
+\begin{tabular}{lccc}
+\hline
+\textbf{Semantic Class} & \textbf{Baseline SegFormer-B2} & \textbf{FashionFit-PK Gold (Ours)} & \textbf{Gain} \\
+\hline
+\texttt{other} (bg, face, hands) & 95.72 & \textbf{96.81} & +1.09 \\
+\texttt{kurta\_kameez} & 74.31 & \textbf{84.29} & +9.98 \\
+\texttt{bottom} (shalwar/trousers) & 36.98 & \textbf{69.43} & +32.45 \\
+\texttt{dupatta} & 3.12 & \textbf{55.82} & \textbf{+52.70 (17.9$\times$)} \\
+\hline
+\textbf{4-Class mIoU} & 52.53 & \textbf{76.59} & \textbf{+24.06} \\
+\hline
+\end{tabular}
+\end{table}
+
+\begin{table}[t]
+\centering
+\caption{Pakistani Virtual Try-On Quantitative Evaluation on Held-Out Unseen-SKU Test Set ($N = 50$).}
+\label{tab:catvton_lora}
+\begin{tabular}{lccc}
+\hline
+\textbf{Model} & \textbf{FID ($\downarrow$)} & \textbf{LPIPS ($\downarrow$)} & \textbf{CLIP-I ($\uparrow$)} \\
+\hline
+CatVTON (Zero-Shot Baseline) & 120.16 & 0.1869 & -- \\
+\textbf{CatVTON + Pakistani LoRA (Ours)} & \textbf{95.28} & \textbf{0.1531} & \textbf{0.9488} \\
+\hline
+\textbf{Relative Improvement} & \textbf{-20.7\%} & \textbf{-18.1\%} & -- \\
+\hline
+\end{tabular}
+\end{table}
