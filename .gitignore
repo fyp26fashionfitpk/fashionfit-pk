@@ -1,0 +1,31 @@
+# Secrets & Environment
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# Node & Frontend Build
+node_modules/
+dist/
+.vite/
+.vercel/
+
+# Python & Notebooks
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.ipynb_checkpoints/
+
+# Large Model Weights & Datasets (hosted on Google Drive / HF)
+*.safetensors
+*.ckpt
+*.pt
+*.pth
+*.bin
+*.zip
+
+# OS Artifacts
+.DS_Store
+Thumbs.db

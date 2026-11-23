@@ -1,0 +1,28 @@
+name: FashionFit-PK CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install lightweight test dependencies
+        run: python -m pip install --upgrade pip numpy
+
+      - name: Run syntax check, unit tests, and mask profiler
+        run: |
+          python -m py_compile lib/*.py tests/*.py bin/profile_inference.py
+          python -m unittest discover -s tests -v
+          python bin/profile_inference.py
