@@ -1,36 +1,35 @@
-% FashionFit-PK — Measured Benchmark Tables (LaTeX)
-% All figures are empirically measured on zero-leakage unseen-SKU held-out splits.
+% FashionFit-PK V4 — Strictly Separated Empirical Tables (LaTeX)
+% Updated 28 Nov 2026: Legacy non-CatVTON SD1.5-Inpaint LoRA quarantined.
 
 \begin{table}[t]
 \centering
-\caption{4-Class Pakistani Semantic Segmentation IoU (\%) on the Gold Human-Verified Held-Out Test Set.}
-\label{tab:segformer_4class}
-\begin{tabular}{lccc}
+\caption{V4 Universal 4-Class Semantic Segmentation Pooled Foreground mIoU (\%) on Frozen Held-Out Test Set ($N=30$). Segmentation overlap only; does not establish try-on quality.}
+\label{tab:segformer_v4}
+\begin{tabular}{lcccc}
 \hline
-\textbf{Semantic Class} & \textbf{Baseline SegFormer-B2} & \textbf{FashionFit-PK Gold (Ours)} & \textbf{Gain} \\
+\textbf{Domain} & \textbf{$N$} & \textbf{Baseline} & \textbf{Adult Gold} & \textbf{V4 Universal} \\
 \hline
-\texttt{other} (bg, face, hands) & 95.72 & \textbf{96.81} & +1.09 \\
-\texttt{kurta\_kameez} & 74.31 & \textbf{84.29} & +9.98 \\
-\texttt{bottom} (shalwar/trousers) & 36.98 & \textbf{69.43} & +32.45 \\
-\texttt{dupatta} & 3.12 & \textbf{55.82} & \textbf{+52.70 (17.9$\times$)} \\
+Adult Pr\^{e}t & 15 & 34.64 & 69.99 & 69.86 \\
+Kids Ethnic & 8 & 43.31 & 54.00 & \textbf{77.63} \\
+Wedding Formals & 7 & 23.93 & 54.61 & 55.96 \\
 \hline
-\textbf{4-Class mIoU} & 52.53 & \textbf{76.59} & \textbf{+24.06} \\
+\textbf{Overall Pooled} & \textbf{30} & \textbf{36.51} & \textbf{64.48} & \textbf{72.64} \\
 \hline
 \end{tabular}
 \end{table}
 
 \begin{table}[t]
 \centering
-\caption{Pakistani Virtual Try-On Quantitative Evaluation on Held-Out Unseen-SKU Test Set ($N = 50$).}
-\label{tab:catvton_lora}
-\begin{tabular}{lccc}
+\caption{Single-Reviewer Exploratory Blind Human Evaluation (\texttt{blind\_full20\_v2}, $N=80$, reviewer: Mutee; two-reviewer gate unmet).}
+\label{tab:human_eval_v4}
+\begin{tabular}{lccccc}
 \hline
-\textbf{Model} & \textbf{FID ($\downarrow$)} & \textbf{LPIPS ($\downarrow$)} & \textbf{CLIP-I ($\uparrow$)} \\
+\textbf{Pipeline} & \textbf{Strict Pass} & \textbf{MA} & \textbf{SV} & \textbf{Design} & \textbf{Scope} \\
 \hline
-CatVTON (Zero-Shot Baseline) & 120.16 & 0.1869 & -- \\
-\textbf{CatVTON + Pakistani LoRA (Ours)} & \textbf{95.28} & \textbf{0.1531} & \textbf{0.9488} \\
-\hline
-\textbf{Relative Improvement} & \textbf{-20.7\%} & \textbf{-18.1\%} & -- \\
+FASHN 1.5 (\texttt{original\_model\_photo}) & \textbf{6/20 (30\%)} & \textbf{7} & 10 & \textbf{4.35} & 2.75 \\
+FASHN 1.5 (\texttt{internal\_maskless} cutout) & 3/20 (15\%) & 15 & 4 & 2.90 & 4.20 \\
+CatVTON + V4 Universal Masks & 2/20 (10\%) & 12 & \textbf{0} & 2.40 & \textbf{4.75} \\
+CatVTON + Baseline Masks & 1/20 (5\%) & 15 & 3 & 2.45 & 4.30 \\
 \hline
 \end{tabular}
 \end{table}

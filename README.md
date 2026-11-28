@@ -1,91 +1,71 @@
-# FashionFit-PK — Culturally-Aware AI Virtual Try-On for Pakistani Ethnic Wear
+# FashionFit-PK — Culturally-Aware Pakistani Clothing Segmentation & Virtual Try-On (Research Prototype)
 
 [![CI](https://img.shields.io/badge/CI-GitHub%20Actions-blue)](#)
-[![Live Demo](https://img.shields.io/badge/Cloud%20Demo-Vercel-black)](https://fashionfit-pk.vercel.app/)
 [![Institution](https://img.shields.io/badge/ITU-FoS%20Fall%202026%20FYP-0f766e)](#)
+[![Status](https://img.shields.io/badge/Release-Experimental%20Research%20Prototype-amber)](#)
 
-**FashionFit-PK** is a full-stack and research-driven Virtual Try-On (VTON) platform built specifically for Pakistani ethnic wear (3-piece prêt, dupattas, kids' ethnic wear, and flared wedding lehengas). It combines a **custom 4-class Gold SegFormer-B2 parser** (explicitly isolating `dupatta`), a **Pakistani-adapted CatVTON + LoRA generator**, and a **novel A-line dilated masking algorithm** for flared bridal silhouettes.
+**FashionFit-PK** is an open, reproducible research prototype for Pakistani ethnic-wear 4-class semantic segmentation and virtual try-on spanning adult upper-body kurtas, girl-child outfits, cross-age visual garment transfer, and wedding lehenga research.
 
----
-
-## Live Cloud Deployment
-* **Production Web App:** [https://fashionfit-pk.vercel.app/](https://fashionfit-pk.vercel.app/)
+> **Honest Scope & Limitations:** All generated outputs are **visual appearance previews**, not physical sizing/tailoring guarantees. Core try-on operates without paid Gemini billing (Gemini is disabled by default). Live GPU inference uses an authenticated temporary Colab T4/L4 worker (not 24/7 public hosting).
 
 ---
 
-## Empirically Measured Results (Zero-Leakage Unseen-SKU Splits)
+## Verified Empirical Results (Strictly Separated by Evidence Type)
 
-### 1. 4-Class Pakistani Semantic Segmentation (Gold Held-Out Test Set)
-| Class | Baseline (`segformer_b2_clothes`) | **FashionFit-PK Gold SegFormer-B2** | Gain |
-|---|---:|---:|---:|
-| `other` | 95.72% | **96.81%** | +1.09% |
-| `kurta_kameez` | 74.31% | **84.29%** | +9.98% |
-| `bottom` | 36.98% | **69.43%** | **+32.45%** |
-| `dupatta` | 3.12% | **55.82%** | **+52.70% (17.9x)** |
-| **Overall mIoU** | **52.53%** | **76.59%** | **+24.06%** |
+### 1. V4 Universal 4-Class Semantic Segmentation (NB02, $N=30$ Held-Out Test Images)
+*Segmentation overlap only — does NOT measure try-on visual quality.*
 
-### 2. Pakistani Virtual Try-On Generation (Held-Out Unseen-SKU Set, $N = 50$)
-| Metric | Zero-Shot CatVTON | **CatVTON + Pakistani LoRA** | Improvement |
-|---|---:|---:|---:|
-| **FID** ($\downarrow$) | 120.16 | **95.28** | **-20.7%** |
-| **LPIPS** ($\downarrow$) | 0.1869 | **0.1531** | **-18.1%** |
-| **CLIP-I** ($\uparrow$) | — | **0.9488** | High fidelity |
+| Domain | $N$ | Baseline FG mIoU | Adult Gold FG mIoU | **V4 Universal FG mIoU** | Notes |
+|---|---:|---:|---:|---:|---|
+| `adult_pret` | 15 | 34.64% | 69.99% | **69.86%** (-0.13 pp) | Adult bottom regressed `69.10% → 59.74%`. |
+| `kids_ethnic` | 8 | 43.31% | 54.00% | **77.63%** (+23.63 pp) | Strongest pilot gain; 6-image clean ethnic subset `78.05%`. |
+| `wedding_formals` | 7 | 23.93% | 54.61% | **55.96%** (+1.36 pp) | Formal bottom regressed `30.80% → 21.98%`. |
+| **Overall Pooled** | **30** | **36.51%** | **64.48%** | **72.64%** (+8.16 pp) | `09_MODELS/universal_b2/best_checkpoint` (epoch 11). |
+
+### 2. Offline VTON Human Evaluation (`blind_full20_v2`, 80 Outputs, Single Reviewer: Mutee)
+*Single-reviewer exploratory results only. Abdullah's independent review was intentionally skipped; the predeclared two-reviewer release gate remains **UNMET**.*
+
+| Pipeline | $N$ | Strict Pass (`all≥4, !MA, !SV`) | Major Artifacts | Scope Violations | Mean Design | Mean ID | Mean Scope |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| **`fashn_vton_1_5__original_model_photo`** | 20 | **6 / 20 (30.0%)** | **7** | 10 | **4.35** | **5.00** | 2.75 |
+| `fashn_vton_1_5__internal_maskless` (cutout) | 20 | 3 / 20 (15.0%) | 15 | 4 | 2.90 | 4.90 | 4.20 |
+| `catvton__universal` (V4 masks) | 20 | 2 / 20 (10.0%) | 12 | **0** | 2.40 | 4.65 | **4.75** |
+| `catvton__baseline` (Baseline masks) | 20 | 1 / 20 (5.0%) | 15 | 3 | 2.45 | 4.70 | 4.30 |
+
+*Note on Legacy Experiment Quarantine:* Earlier historical SD1.5-Inpainting LoRA runs (`FID 120.16 → 95.28`, `LPIPS 0.1869 → 0.1531`) did not initialize from author CatVTON attention weights and used self-cutout pseudo-references on an older split; they are quarantined as **unverified legacy experiments** and excluded from current validated claims.
 
 ---
 
-## Industry-Standard Repository Structure
+## Repository Structure & Clean-Clone Commands
 
 ```text
 fyp26-fashionfit-pk/
-├── .github/workflows/ci.yml             # Automated CI pipeline (lint + unit tests + profiler)
-├── bin/                                 # Executable shell, health, profiling & isolated push scripts
-├── docs/                                # Formal FYP I Report, Architecture, Test Cases, Missing Semester, PPTX
-├── lib/                                 # Core Python ML library (4-class masking, flared lehenga dilation, IoU/SKU metrics)
-├── research/                            # Reproducible FYP2 & V3 Jupyter notebooks + visual proof results
-├── src/                                 # Full-stack application (frontend/, backend/, api/, colab_server/)
-├── tests/                               # Automated unittest suite (masking, metrics, repo/API contracts)
-├── Makefile                             # Standardized automation targets (make verify)
-└── .env.example                         # Clean environment variable template (zero committed secrets)
+├── .github/workflows/ci.yml             # Runs Python tests, JS/React component tests & Vite build
+├── bin/                                 # Executable shell & profiling utilities
+├── docs/                                # Completion tracker, capability matrix, FYP I docs & test cases
+├── lib/                                 # Core 4-class masking & evaluation utilities
+├── research/                            # Reproducible notebooks, 03D FASHN control runner & JSON/LaTeX results
+├── src/                                 # Full-stack app (frontend/, backend/, api/, colab_server/)
+└── tests/                               # Python worker/proxy/runner tests + JS orchestrator tests
 ```
-
----
-
-## Quick Verification (MIT Missing Semester Applied)
 
 ```bash
-# Run syntax checks, automated unit tests, and mask latency/memory profiler
-make verify
+# 1. Run all Python unit & regression tests (worker, proxy, 03D runner, lib)
+python -m unittest discover -s tests -v
 
-# Or directly via shell script
-bash bin/run_tests.sh
-python bin/profile_inference.py
+# 2. Run Node request-ownership & Gemini-disabled tests
+node --test tests/test_studio_controller.mjs
+
+# 3. Run rendered React <StudioPage /> component tests & production build
+cd src/frontend && npm ci && npm test && npm run build
 ```
 
 ---
 
-## Visual Proof Gallery (Empirical Evidence)
-
-### 1. Gold 4-Class SegFormer-B2 Predictions (Held-Out Pakistani Test Set)
-![Gold SegFormer 4-Class Predictions](research/results/segformer_gold_test_predictions_grid.jpg)
-
-### 2. Live End-to-End Virtual Try-On & Cloud Deployment QA
-| Best-Case Live Try-On | Mid-Case Live Try-On | Live Vercel Cloud App (QA Verified) |
-|---|---|---|
-| ![Best Case VTON](research/results/live_tryon_results/vton_1_best_case_result.png) | ![Mid Case VTON](research/results/live_tryon_results/vton_2_mid_case_result.png) | ![Live Vercel QA](docs/evidence/live_vercel_qa_screenshot.png) |
-
-*(Additional dupatta segmentation proofs, baseline-vs-adapted cutout overlays, and worst-case stress tests are archived in `research/results/dupatta_proofs/` and `research/results/live_tryon_results/`.)*
-
----
-
-## ITU FoS FYP I Compliance & End-to-End Traceability Checklist
-- [x] **Complete Chronological Progress Log:** [CHANGELOG.md](CHANGELOG.md) (Phase 1 $\rightarrow$ v1.1.0-fyp1)
-- [x] **Complete Formal Documentation:** [docs/FYP1_COMPLETE_DOCUMENTATION.md](docs/FYP1_COMPLETE_DOCUMENTATION.md) (Standard + Research + Math + 5-Project Survey)
-- [x] **Architecture & Detailed Design:** [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
-- [x] **Supervisor Questions & V3 Extension Plan:** [docs/SUPERVISOR_QUESTIONS_AND_V3_EXTENSION.md](docs/SUPERVISOR_QUESTIONS_AND_V3_EXTENSION.md) (Data Sources, Kids Wear, Cross-Age, Flared Lehengas)
-- [x] **AI Usage Transparency & Data Ethics:** [docs/AI_USAGE_AND_ETHICS.md](docs/AI_USAGE_AND_ETHICS.md)
-- [x] **Manually Reviewed Test Cases & E2E Harness:** [docs/TEST_CASES.md](docs/TEST_CASES.md) + `tests/` + `tests/e2e/run_live_tryon_test.py`
-- [x] **MIT Missing Semester Applied:** [docs/MISSING_SEMESTER_APPLIED.md](docs/MISSING_SEMESTER_APPLIED.md) (`bin/`, `Makefile`, CI, profiler, isolated Git)
-- [x] **Machine-Readable & LaTeX Benchmarks:** [research/results/measured_benchmarks.json](research/results/measured_benchmarks.json) & [research/results/paper_tables.tex](research/results/paper_tables.tex)
-- [x] **Defense Slides:** [docs/FashionFit_PK_FYP1_Defense_Presentation.pptx](docs/FashionFit_PK_FYP1_Defense_Presentation.pptx)
-- [x] **Cloud Deployment:** [https://fashionfit-pk.vercel.app/](https://fashionfit-pk.vercel.app/)
-- [x] **Dedicated Project Account:** Owned by `fyp26fashionfitpk` (`fyp26_fashionfitpk@gmail.com`)
+## Authoritative Documentation
+* [Completion Tracker & ITU FoS Compliance Audit](docs/COMPLETION_TRACKER_AND_COMPLIANCE.md)
+* [Capability Matrix, Separated Evidence & Provenance](docs/SYSTEM_CAPABILITY_MATRIX_AND_PROVENANCE.md)
+* [Formal FYP I Documentation](docs/FYP1_COMPLETE_DOCUMENTATION.md) & [Architecture](docs/ARCHITECTURE.md)
+* [Test Cases Checklist (Pending Manual Student Review)](docs/TEST_CASES.md)
+* [MIT Missing Semester Applied Practices](docs/MISSING_SEMESTER_APPLIED.md)
+* [AI Usage Transparency & Data Ethics](docs/AI_USAGE_AND_ETHICS.md)

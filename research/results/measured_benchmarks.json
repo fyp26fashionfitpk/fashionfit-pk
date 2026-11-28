@@ -1,71 +1,59 @@
 {
   "project": "FashionFit-PK",
-  "institution": "Information Technology University (ITU) - Faculty of Sciences",
-  "term": "Fall 2026",
-  "datasets": {
-    "adult_clean_corpus": {
-      "total_unique_images": 624,
-      "total_unique_skus": 301,
-      "duplicates_removed": 597,
-      "sku_leakage_percent": 0.0,
+  "updated": "2026-11-28",
+  "datasets_verified": {
+    "adult_manifest_current": {
+      "manifest_images": 621,
+      "distinct_skus": 327,
+      "paired_train_images": 472,
+      "paired_test_images": 85,
       "sources": {
         "Generation": 237,
-        "Ethnc": 180,
-        "Limelight": 180,
-        "Curated_Pilot": 27
-      },
-      "gold_human_verified_seg_outfits": {
-        "total": 95,
-        "dupatta_positive": 44,
-        "dupatta_negative": 51
+        "Limelight": 179,
+        "Ethnc": 178,
+        "Reviewed_Pilot": 27
       }
     },
-    "v3_kids_and_wedding_formal_corpus": {
-      "total_unique_images": 360,
-      "total_unique_skus": 181,
-      "train_images": 291,
-      "unseen_sku_test_images": 62,
-      "sources": {
-        "Peraan_Mini_Kids": 96,
-        "Limelight_Girls_Kids": 84,
-        "Peraan_Wedding_Formals": 180
+    "v4_frozen_universal_seg_study": {
+      "train": 133,
+      "val": 29,
+      "test": 30,
+      "test_by_domain": {
+        "adult_pret": 15,
+        "kids_ethnic": 8,
+        "wedding_formals": 7
       }
     }
   },
-  "segformer_b2_4class_gold_iou_percent": {
-    "baseline_segformer_b2_clothes": {
-      "other": 95.72,
-      "kurta_kameez": 74.31,
-      "bottom": 36.98,
-      "dupatta": 3.12,
-      "mIoU": 52.53
-    },
-    "fashionfit_pk_gold_segformer_b2": {
-      "other": 96.81,
-      "kurta_kameez": 84.29,
-      "bottom": 69.43,
-      "dupatta": 55.82,
-      "mIoU": 76.59,
-      "two_piece_dupatta_false_positive_rate_percent": 0.0
+  "segmentation_nb02_pooled_fg_miou_percent": {
+    "note": "Segmentation pixel overlap only; NOT virtual try-on quality.",
+    "adult_pret": {"N": 15, "baseline": 34.64, "gold": 69.99, "universal_v4": 69.86},
+    "kids_ethnic": {"N": 8, "baseline": 43.31, "gold": 54.00, "universal_v4": 77.63},
+    "wedding_formals": {"N": 7, "baseline": 23.93, "gold": 54.61, "universal_v4": 55.96},
+    "overall": {"N": 30, "baseline": 36.51, "gold": 64.48, "universal_v4": 72.64}
+  },
+  "vton_nb03_offline_execution": {
+    "note": "Execution counts and runtime only; NOT visual quality.",
+    "catvton_baseline": {"succeeded": 20, "planned": 20, "mean_seconds": 66.30, "peak_vram_gib": 4.14},
+    "catvton_universal": {"succeeded": 20, "planned": 20, "mean_seconds": 63.24, "peak_vram_gib": 4.14},
+    "fashn_vton_1_5_flatlay": {"succeeded": 20, "planned": 20, "mean_seconds": 396.35, "peak_vram_gib": 10.90}
+  },
+  "human_evaluation_blind_full20_v2": {
+    "reviewer_count": 1,
+    "reviewer_id": "mutee",
+    "two_reviewer_gate_status": "UNMET",
+    "strict_rule": "all_5_scores>=4 and major_artifact=false and scope_violation=false",
+    "by_pipeline": {
+      "fashn_vton_1_5__original_model_photo": {"N": 20, "strict_pass": 6, "major_artifacts": 7, "scope_violations": 10, "mean_design": 4.35, "mean_silhouette": 3.80, "mean_identity": 5.00, "mean_artifact": 3.45, "mean_scope": 2.75},
+      "fashn_vton_1_5__internal_maskless": {"N": 20, "strict_pass": 3, "major_artifacts": 15, "scope_violations": 4, "mean_design": 2.90, "mean_silhouette": 2.40, "mean_identity": 4.90, "mean_artifact": 2.05, "mean_scope": 4.20},
+      "catvton__universal": {"N": 20, "strict_pass": 2, "major_artifacts": 12, "scope_violations": 0, "mean_design": 2.40, "mean_silhouette": 2.90, "mean_identity": 4.65, "mean_artifact": 2.70, "mean_scope": 4.75},
+      "catvton__baseline": {"N": 20, "strict_pass": 1, "major_artifacts": 15, "scope_violations": 3, "mean_design": 2.45, "mean_silhouette": 2.75, "mean_identity": 4.70, "mean_artifact": 2.30, "mean_scope": 4.30}
     }
   },
-  "catvton_lora_heldout_unseen_sku_n50": {
-    "training_pairs": 930,
-    "training_steps": 1000,
-    "final_training_loss": 0.0343,
-    "baseline_catvton_zeroshot": {
-      "FID": 120.16,
-      "LPIPS": 0.1869
-    },
-    "catvton_pakistani_lora": {
-      "FID": 95.28,
-      "LPIPS": 0.1531,
-      "CLIP_I": 0.9488
+  "legacy_quarantined_experiments": {
+    "sd15_inpaint_lora_historical": {
+      "status": "QUARANTINED_UNVERIFIED_LEGACY",
+      "reason": "Trained on booksforcharlie/stable-diffusion-inpainting (not author CatVTON weights) using self-cutout pseudo-references on an older inconsistent split; excluded from validated claims."
     }
-  },
-  "mask_profiler_512x384_cpu": {
-    "upper_body_ms": 0.92,
-    "full_outfit_ms": 2.31,
-    "flared_lehenga_ms": 8.89
   }
 }

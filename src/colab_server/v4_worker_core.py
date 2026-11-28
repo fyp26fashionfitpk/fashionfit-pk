@@ -21,9 +21,28 @@ import io
 import secrets
 import threading
 import time
+import zipfile
 from concurrent.futures import Future, ThreadPoolExecutor
 from pathlib import Path
 from typing import Any, Callable
+
+
+def safe_extract_zip(zip_path: Path, dest_dir: Path) -> list[str]:
+    """Safely extract a ZIP using Path.relative_to() containment (blocks traversal & sibling-prefix attacks)."""
+    root = dest_dir.resolve()
+    root.mkdir(parents=True, exist_ok=True)
+    extracted: list[str] = []
+    with zipfile.ZipFile(zip_path, "r") as zf:
+        for member in zf.infolist():
+            target = (root / member.filename).resolve()
+            try:
+                target.relative_to(root)
+            except ValueError as exc:
+                raise ValueError(f"Unsafe archive path rejected: {member.filename}") from exc
+        for member in zf.infolist():
+            zf.extract(member, root)
+            extracted.append(member.filename)
+    return extracted
 
 import numpy as np
 from fastapi import FastAPI, File, Form, Header, HTTPException, UploadFile
