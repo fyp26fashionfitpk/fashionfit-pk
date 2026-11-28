@@ -1,158 +1,66 @@
-# FashionFit-PK: Culturally-Aware AI Virtual Try-On for Pakistani Ethnic Wear
-## Final Year Project I (FYP I) — Complete Technical & Research Documentation
+# FashionFit-PK: FYP I research and implementation record
 
-**Institution:** Information Technology University (ITU), Faculty of Sciences (FoS)  
-**Term:** Fall 2026  
-**Project Email:** `fyp26_fashionfitpk@gmail.com`  
-**Live Cloud Deployment:** [https://fashionfit-pk.vercel.app/](https://fashionfit-pk.vercel.app/)  
+Updated 28 November 2026. This document describes verified offline evidence and the implemented research prototype. Live v4.2 GPU integration, the new masking experiment and full adult bridal evaluation remain pending execution/evaluation.
 
----
+## Background and problem
+Pakistani clothing includes long kurtas, trousers/shalwar, overlapping dupattas and elaborate formal components. Catalog references are often model-worn photographs, not independent flat-lays. We study which segmentation and reference-processing choices help visual garment transfer. We do not assume all existing models fail or that fine-tuning is always necessary. No unsupported national return-rate estimate is used to justify the project.
 
-## 1. Background & Problem Definition
+## Questions and scope
+1. Does an adapted four-class parser improve held-out segmentation across adult, child and formal clothing?
+2. How do baseline/adapted target masks affect CatVTON outputs?
+3. How do original model photographs versus visible-fabric cutouts affect FASHN outputs?
+4. Does FASHN's native masked mode improve edit scope without harming fidelity or recipient identity?
+5. What remains unsupported for adult lehenga/choli and dupatta transfer?
 
-Online fashion retail in Pakistan suffers from high return rates (25–35%) because shoppers cannot visualize how unstitched or prêt ethnic garments — featuring long hemlines, intricate embroidery, flowing dupattas, and flared bridal silhouettes — will drape on their own bodies. Existing state-of-the-art Virtual Try-On (VTON) systems (such as VITON-HD, HR-VITON, IDM-VTON, OOTDiffusion, and base CatVTON) are trained almost exclusively on Western e-commerce datasets (VITON-HD, DressCode) containing T-shirts, jeans, and short dresses.
+Advisor-required categories are adult tops, girl-child ethnic clothing, both cross-age directions and adult bridal components. Incomplete bridal evaluation is a pending required component, not silently deferred to FYP II. Physical sizing, hidden-fabric recovery and trustworthy unseen back views are outside current evidence.
 
-When applied directly to Pakistani attire, Western VTON pipelines fail in three measurable ways:
-1. **Dupatta Occlusion Failure:** Pretrained human parsers (e.g., `mattmdjaga/segformer_b2_clothes`) have no semantic class for `dupatta` (achieving only **3.12% IoU** on Pakistani outfits), causing the generator to erase or hallucinate over draped scarves.
-2. **Garment Structure & Hemline Distortion:** Western upper-body models shorten long kurtas/kameez and blur dense South Asian embroidery (baseline CatVTON FID **120.16** on Pakistani held-out outfits).
-3. **Domain Gaps in Kids & Flared Wedding Formals:** Tight straight-leg masks squeeze wide bridal lehengas, and adult-only parsers struggle with children's distinct head-to-body proportions (~1:4.5 vs. ~1:7.5 for adults).
+## Related work and implementation references
+The survey must distinguish each published paper from its code and any subsequent models. Relevant sources are VITON-HD (https://github.com/shadow2496/VITON-HD), HR-VITON (https://github.com/sangyun884/HR-VITON), IDM-VTON (https://github.com/yisol/IDM-VTON), CatVTON (https://github.com/Zheng-Chong/CatVTON) and SegFormer (https://github.com/NVlabs/SegFormer). FASHN v1.5 is an implemented comparison (https://github.com/fashn-AI/fashn-vton-1.5); do not label it a published conference paper without publication verification. These pointers require final publication/bibliography checks before submission. Broad architectural differences do not establish failure on our dataset without experiments.
 
----
+## Requirements and design
+The React/Vite studio accepts person and garment images, selects supported model/input combinations, displays processing state, renders returned results and downloads the completed run's image. A temporary authenticated Colab worker provides segmentation and try-on. The browser may connect directly to the worker; the local proxy is an alternative. Gemini remains optional and disabled by default.
 
-## 2. Comprehensive Literature Review & Survey (5 Most Relevant Projects)
+Segmentation classes: 0 other, 1 kurta_kameez/choli, 2 bottom, 3 dupatta; ignore=255. Annotate visible fabric only. Sarees are not silently forced into these classes. Recipient dupatta preservation differs from donor dupatta transfer.
 
-| # | Project / Paper | Core Architecture | Strengths | Key Limitations on Pakistani Ethnic Wear |
-|---|---|---|---|---|
-| **1** | **VITON-HD** (Choi et al., CVPR 2021) | TPS Warping + ALIAS Normalization GAN | High-resolution ($1024 \times 768$) upper-body alignment | Explicit warping fails on loose kurtas, heavy folds, and dupatta occlusions. |
-| **2** | **HR-VITON** (Lee et al., ECCV 2022) | Unified Warping + Segmentation Generator | Eliminates misalignment artifacts on Western tops | Trained purely on VITON-HD; zero support for multi-piece ethnic layering. |
-| **3** | **IDM-VTON** (Choi et al., ECCV 2024) | SDXL + Dual GarmentNet / IP-Adapter | Rich texture preservation and photorealism | Heavy VRAM footprint (>18 GB), slow inference, lacks Pakistani garment priors. |
-| **4** | **OOTDiffusion** (Xu et al., AAAI 2025) | Outfitting UNet + Outfitting Fusion | Clean full-body / upper / lower control | Depends on Western 18-class parsing; erases dupattas during upper swaps. |
-| **5** | **CatVTON** (Chong et al., ICLR 2025) | Lightweight Concatenation-Based Diffusion UNet | Parameter-efficient (~899M params), fits on 16 GB T4 GPU, no separate garment encoder | Zero-shot baseline suffers high FID (**120.16**) and embroidery degradation on Pakistani attire without domain LoRA adaptation. |
+CatVTON uses an explicit target edit mask and a product-style reference or clearly identified visible-fabric pseudo-reference. No Pakistani CatVTON LoRA improvement is established by the current verified runs. FASHN uses its own parsing and either model-photo or flat-lay input handling. The v2 03D experiment changes only its segmentation_free option while holding the matched inputs/settings fixed. It does not use V4 masks as FASHN conditioning.
 
-**Synthesis & Research Gap:** CatVTON offers the ideal memory-efficient foundation for real-world deployment on accessible GPUs (T4), but requires (a) a **custom 4-class Pakistani semantic parser** that explicitly isolates `dupatta` and `kurta_kameez`, (b) **parameter-efficient LoRA domain adaptation** on clean Pakistani studio datasets, and (c) **A-line dilated masking** for flared bridal lehengas.
+The GPU worker bounds admission, owns running slots until execution ends, verifies authentication, loads models lazily and evicts the competing VTON model. A timeout does not cancel GPU execution. The live notebook configures 1800 seconds for the worker's load/execution wait and 1860 seconds for smoke clients; these are test budgets, not latency promises. Colab/tunnel hosting is temporary.
 
----
+## Data and experimental setup
+The current reviewed segmentation set contains 95 adult and 97 accepted child/formal images after exclusion of one incorrectly mapped saree. Frozen assignment: 133 train, 29 validation, 30 test (adult 15, child 8, formal 7). Catalog identities/subjects can recur; SKU grouping is not proof of independent-person testing. Candidate counts and reviewed ground truth are distinct.
 
-## 3. Project Scope & Functional Specifications
+The adapted B2 parser starts from the existing four-class Gold model. Validation selected epoch 11. Geometry differs between Gold and adapted evaluation; the system comparison does not isolate fine-tuning alone. No new training is launched merely to improve previously inspected test scores.
 
-### 3.1 In-Scope (FYP I Complete + Research Foundation)
-* **Web Application:** Cloud-hosted React/Vite frontend + FastAPI/Vercel serverless backend (`https://fashionfit-pk.vercel.app/`).
-* **4-Class Pakistani Garment Parser:** Fine-tuned `SegFormer-B2` separating `other`, `kurta_kameez`, `bottom`, and `dupatta`.
-* **Pakistani VTON Generator:** `CatVTON` adapted with LoRA weights fine-tuned on verified Pakistani fashion pairs.
-* **Multi-Pose Preview & Garment Prep:** Front, angled, and back view workflows plus automatic garment canonicalization.
-* **V3 Extension Pipeline (In Progress):** Kids' ethnic wear (`Peraan Mini`, `Limelight Girls`), cross-age try-on analysis, and flared wedding lehenga masking (`Peraan` formals).
+Twenty original VTON case pairs were evaluated under four conditions (80 outputs), with recipient reuse. The new 03D v2 protocol binds complete case definitions, image hashes, settings and runtime identity before inference. It generates both conditions in a separate folder. Existing exposed cases provide exploratory evidence, not a fresh confirmatory holdout.
 
-### 3.2 Functional Requirements
-| ID | Requirement | Verification |
-|---|---|---|
-| **FR-01** | User uploads a target person photo and selects/uploads a Pakistani garment image. | Verified in WebApp UI (`TC-01`, `TC-02`). |
-| **FR-02** | System parses person image into 4 semantic classes (`other`, `kurta_kameez`, `bottom`, `dupatta`). | Verified via Gold SegFormer-B2 (`TC-07`). |
-| **FR-03** | System preserves draped dupattas during kurta/kameez swap (0% false positive erasure). | Verified via `preserve_dupatta_over_mask` (`TC-08`). |
-| **FR-04** | System generates photorealistic virtual try-on output via CatVTON + Pakistani LoRA. | Verified via Colab T4 GPU backend (`TC-11`). |
-| **FR-05** | System supports A-line flared masking for bridal/wedding lehengas. | Verified via `make_flared_lehenga_mask` (`TC-09`). |
-| **FR-06** | Graceful error recovery and health telemetry when GPU backend is offline. | Verified via `/api/health` (`TC-05`, `TC-06`). |
+## Metrics
+For a confusion matrix C with truth rows and prediction columns, IoU_c=C_cc/(sum_j C_cj+sum_i C_ic-C_cc). Foreground pooled mIoU is the average over the supported foreground classes under the recorded evaluation convention; absent support and false positives must be reported explicitly. It is not visual try-on accuracy.
 
-### 3.3 Non-Functional Requirements
-* **Performance:** Cloud UI loads in <2 s; GPU try-on inference executes within 12–25 s on a single NVIDIA T4 (16 GB VRAM).
-* **Privacy & Ethics:** All training images are sourced strictly from public commercial brand catalogs (never personal photos of minors); user uploads are processed in-memory without persistent storage.
-* **Reproducibility:** Strict SKU-level train/test splitting (0% data leakage) and deterministic evaluation scripts.
+The parser training loss and optimizer settings are defined in the actual training configuration/logs; no unverified weighted-loss or epoch claim is substituted here. A top edit mask includes predicted class 1 and excludes protected/ignore pixels. Flared masks are geometric heuristics, not learned bridal specialization or proof of correct fabric physics.
 
----
+Visual acceptance in the existing study requires all five ordinal ratings >=4 and both major_artifact and scope_violation false. The completed current evaluation has one reviewer. The original two-reviewer gate remains unmet. Wrong-garment transfer can be a major failure even when pixel artifacts look clean.
 
-## 4. System Architecture, High-Level & Detailed Design
+## Verified offline results
+| Test domain | N | Baseline FG mIoU | Gold | Adapted B2 |
+|---|---:|---:|---:|---:|
+| Adult | 15 | 34.64% | 69.99% | 69.86% |
+| Child | 8 | 43.31% | 54.00% | 77.63% |
+| Formal | 7 | 23.93% | 54.61% | 55.96% |
+| Pooled | 30 | 36.51% | 64.48% | 72.64% |
+Adult bottom and formal bottom regressions remain: 69.10 to 59.74%, and 30.80 to 21.98%. No blanket zero-false-positive claim is made.
 
-Detailed Mermaid diagrams and component breakdowns are documented in [ARCHITECTURE.md](./ARCHITECTURE.md).
+| VTON condition | N | Single-reviewer strict passes | Major-artifact flags | Scope violations |
+|---|---:|---:|---:|---:|
+| CatVTON baseline mask | 20 | 1 | 15 | 3 |
+| CatVTON adapted mask | 20 | 2 | 12 | 0 |
+| FASHN cutout | 20 | 3 | 15 | 4 |
+| FASHN original photo | 20 | 6 | 7 | 10 |
+Pooled acceptance: 12/80. These are exploratory visual ratings, not general accuracy. Previous generation times were about 63-66 seconds for CatVTON and several minutes for FASHN on T4; cold loading adds time. No 12-25 second performance guarantee is supported.
 
-### 4.1 High-Level Pipeline
-1. **Client Layer (Vercel React + Vite):** Handles person/garment upload, outfit catalog selection, try-on mode selection (`upper_body`, `full_outfit`, `flared_lehenga`), and 3-pose preview display.
-2. **API & Preprocessing Layer (Vercel Serverless + FastAPI):** Validates payloads, runs `/api/health` diagnostics, canonicalizes reference garments, and routes inference requests to the GPU worker.
-3. **Segmentation & Masking Module (`lib/mask_utils.py` + SegFormer-B2):** Generates 4-class pixel maps, subtracts `dupatta` pixels to protect draped scarves, and applies progressive horizontal A-line dilation for flared lehengas.
-4. **Generative Try-On Engine (CatVTON + Pakistani LoRA):** Concatenates target person latents, masked person latents, and reference garment latents along the spatial width axis inside the UNet, conditioned via rank-16 LoRA adapters trained on Pakistani ethnic wear.
+## Verification and operational limits
+See TEST_CASES.md and the current test receipt for automated checks. A CPU test double is not real GPU inference. A jsdom anchor-click test is not proof of a downloaded file in the deployed browser. Runtime smoke evidence must include real returned images and their provenance. The website-to-tunnel path, child/cross-age live runs and full bridal evaluation require separate verification.
 
-### 4.2 UI Design
-The production UI implements an editorial luxury aesthetic tailored for Pakistani retail:
-* **Hero & Studio Workspace:** Two-column studio panel with drag-and-drop person/garment uploaders, preset Pakistani outfits, and real-time processing status.
-* **3-Pose Interactive Viewer:** Tabbed Front / Angled / Back inspection panel with zoom and download controls.
-* **Live Status Indicators:** Non-blocking health badge confirming API and GPU server availability.
+## Pending required work and future work
+Execute live smoke tests; inspect the native FASHN masking comparison; complete adult separate lehenga/choli evaluation with suitable references and reviewed components; reconcile human clarifications; complete student manual test review and university access checks. Production scalability, persistent job orchestration, broader held-out confirmation and potential 3D try-on are future work. 3D feasibility/novelty for Pakistani attire has not been established here.
 
----
-
-## 5. Mathematical Formulations
-
-### 5.1 4-Class Semantic Segmentation Objective (SegFormer-B2)
-Given an input image $I \in \mathbb{R}^{H \times W \times 3}$ and ground-truth class map $Y \in \{0,1,2,3\}^{H \times W}$, SegFormer-B2 predicts pixel-wise class probabilities $\hat{P}_{i,c} = \text{softmax}(z_{i,c})$. We optimize class-weighted Cross-Entropy loss to handle the class imbalance of thin dupattas:
-$$\mathcal{L}_{\text{seg}} = -\frac{1}{HW} \sum_{i=1}^{HW} \sum_{c=0}^{3} w_c \, \mathbb{1}[Y_i = c] \log \hat{P}_{i,c}$$
-
-Per-class Intersection-over-Union ($\text{IoU}_c$) and mean IoU ($\text{mIoU}$) are computed as:
-$$\text{IoU}_c = \frac{|\hat{Y}_c \cap Y_c|}{|\hat{Y}_c \cup Y_c|}, \qquad \text{mIoU} = \frac{1}{4}\sum_{c=0}^{3} \text{IoU}_c$$
-
-### 5.2 Dupatta-Preserving & Flared A-Line Masking
-Let $M_{\text{kurta}} = \mathbb{1}[\hat{Y}=1]$, $M_{\text{bottom}} = \mathbb{1}[\hat{Y}=2]$, and $M_{\text{dupatta}} = \mathbb{1}[\hat{Y}=3]$.
-* **Dupatta-Preserving Upper Mask:** $M_{\text{upper}} = M_{\text{kurta}} \odot (1 - M_{\text{dupatta}})$
-* **Flared Lehenga Mask:** For every row $y \in [y_{\text{waist}}, y_{\text{hem}}]$ with active horizontal span $[x_L(y), x_R(y)]$, we apply linear A-line expansion:
-$$\Delta x(y) = \left\lfloor \alpha W \cdot \frac{y - y_{\text{waist}}}{y_{\text{hem}} - y_{\text{waist}}} \right\rfloor, \qquad M_{\text{flared}}(y, [x_L(y)-\Delta x(y),\, x_R(y)+\Delta x(y)]) = 1$$
-followed by dupatta protection: $M_{\text{final}} = M_{\text{flared}} \odot (1 - M_{\text{dupatta}})$.
-
-### 5.3 CatVTON Diffusion & LoRA Adaptation
-CatVTON concatenates noisy person latents $z_t$ and reference garment latents $z_g$ spatially: $\tilde{z}_t = \text{Concat}_{\text{width}}(z_t, z_g)$. Rather than updating all UNet weights $W_0 \in \mathbb{R}^{d \times k}$, we inject trainable low-rank matrices $A \in \mathbb{R}^{r \times k}$ and $B \in \mathbb{R}^{d \times r}$ ($r \ll \min(d, k)$) into self-attention projections:
-$$W' = W_0 + \frac{\alpha_{\text{lora}}}{r} B A$$
-and minimize the masked latent noise-prediction objective:
-$$\mathcal{L}_{\text{VTON}} = \mathbb{E}_{z_0, \epsilon \sim \mathcal{N}(0,I), t} \left[ \left\| \epsilon - \epsilon_\theta(\tilde{z}_t, t, M) \right\|_2^2 \right]$$
-
----
-
-## 6. Experimental Setup & Datasets
-
-### 6.1 Clean Pakistani Adult Dataset (Zero-Leakage)
-Raw brand crawls contained 597 `.source.*` duplicate twin files; all duplicates were removed via filename rules, SHA-256 hashing, and perceptual `dHash`, followed by strict SKU-level splitting (0% train/test overlap):
-* **Generation (`generation.com.pk`):** 237 unique studio images
-* **Ethnc (`ethnc.com`):** 180 unique studio images
-* **Limelight (`limelight.pk`):** 180 unique studio images
-* **Curated Pilot Validation Set:** 27 images
-* **Total Clean Adult Corpus:** **624 unique images across 301 unique SKUs**
-* **Gold Human-Verified 4-Class Segmentation Set:** **95 unique outfits** manually verified via Roboflow SAM (44 dupatta-positive, 51 dupatta-negative).
-
-### 6.2 V3 Kids & Wedding Formal Extension Dataset
-* **Total Clean V3 Corpus:** **360 unique catalog images across 181 unique SKUs** (Train: 291, Unseen-SKU Test: 62)
-  * **Kids Ethnic (180 images):** Peraan Mini (96), Limelight Girls (84)
-  * **Wedding Formals / Lehengas (180 images):** Peraan Formals (180)
-
-### 6.3 Hardware & Training Configuration
-* **Hardware:** NVIDIA Tesla T4 (16 GB VRAM)
-* **SegFormer-B2:** Initialized from `mattmdjaga/segformer_b2_clothes` with reinitialized 4-class decode head; AdamW, 25 epochs.
-* **CatVTON LoRA:** 1,000 optimization steps on 930 Pakistani kurta pairs; converged training loss **0.0343**.
-
----
-
-## 7. Measured Empirical Results
-
-### 7.1 4-Class Pakistani Semantic Segmentation (Held-Out Gold Test Set)
-
-| Semantic Class | Baseline (`segformer_b2_clothes`) | **FashionFit-PK Gold SegFormer-B2** | Absolute Gain |
-|---|---:|---:|---:|
-| `other` (bg, face, hands, skin) | 95.72% | **96.81%** | +1.09% |
-| `kurta_kameez` | 74.31% | **84.29%** | +9.98% |
-| `bottom` (shalwar / trousers) | 36.98% | **69.43%** | **+32.45%** |
-| `dupatta` | 3.12% | **55.82%** | **+52.70% (17.9x)** |
-| **Overall 4-Class mIoU** | **52.53%** | **76.59%** | **+24.06%** |
-
-*Qualitative Verification:* **0% false positives** on 2-piece outfits without dupattas (verified in `research/results/segformer_gold_test_predictions_grid.jpg`).
-
-### 7.2 Virtual Try-On Generation (Held-Out Unseen-SKU Test Set, $N = 50$)
-
-| Metric | Baseline CatVTON (Zero-Shot) | **CatVTON + Pakistani LoRA (Ours)** | Improvement |
-|---|---:|---:|---:|
-| **FID** ($\downarrow$ lower is better) | 120.16 | **95.28** | **-20.7% (-24.88)** |
-| **LPIPS** ($\downarrow$ lower is better) | 0.1869 | **0.1531** | **-18.1% (-0.0338)** |
-| **CLIP-I** ($\uparrow$ higher is better) | — | **0.9488** | High semantic fidelity |
-
----
-
-## 8. Limitations & FYP II Roadmap
-1. **Cross-Age Try-On (Adult $\leftrightarrow$ Child):** Diffusion VTON performs visual texture/appearance transfer rather than physical tailoring; extreme age-gap swaps can stretch or compress embroidery scale without age-proportioned fine-tuning.
-2. **FYP II Targets:** Complete Universal 3-Domain SegFormer & V3 Multi-Mode LoRA training (Kids + Flared Wedding Lehengas), full ablation tables, scalable dedicated GPU hosting, AI-use transparency report, and research paper submission.
-
----
-
-## 9. Verification & Test Cases
-See [TEST_CASES.md](./TEST_CASES.md) for the complete 20-case test matrix and `tests/` for the automated unit/integration test suite.
+Legacy SD1.5-inpainting LoRA numbers are quarantined and do not establish CatVTON adaptation. Archived documents in legacy_unverified preserve history, not current validated claims.

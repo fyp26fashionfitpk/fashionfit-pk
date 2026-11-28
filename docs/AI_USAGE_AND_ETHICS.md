@@ -1,20 +1,13 @@
-# AI Usage Transparency, Data Ethics & Scientific Rigor
+# AI assistance and evidence ownership
 
-In alignment with ITU Faculty of Sciences (FoS) FYP guidelines, this document transparently records how AI tools were used across development, testing, and documentation, along with our data privacy and scientific integrity controls.
+AI assisted code generation, regression-test design, documentation and proposed annotations. Automated checks run on software fixtures do not establish GPU capability or human validation. Students must manually review/finalize test cases; that sign-off remains pending until recorded by the actual reviewers.
 
----
+Existing catalog-derived annotations include human-reviewed examples as recorded in their import manifests. AI proposals must not be represented as reviewed ground truth. Catalog availability does not itself establish redistribution permission. Keep source-use records and private assets outside public exports.
 
-## 1. Transparent Record of AI Assistance
-| Project Area | How AI Was Used | Human Verification & Final Ownership |
-|---|---|---|
-| **Test Case Design** | Drafted initial edge-case matrix (`TC-01`..`TC-20`) and `unittest` scaffolding. | All 20 test cases manually reviewed, executed against the live Vercel app and local codebase (`12/12` automated unit/contract tests passing). |
-| **Dataset Annotation** | Evaluated GroundingDINO-tiny (rejected due to 85% dupatta false positives) and used Roboflow SAM / Auto Label for initial polygon proposals. | Human-verified 95 Gold Adult outfits (44 dupatta-positive, 51 dupatta-negative) and visually audited V3 preview masks before dataset export. |
-| **Code & DevOps Scaffolding** | Assisted with React UI polish, Vercel serverless failover routes, `Makefile`, shell scripts, and GitHub Actions CI. | All code reviewed, executed, debugged on live T4 GPU / Vercel, and verified via CI and browser E2E QA. |
-| **Documentation & Diagrams** | Assisted with structuring Markdown/LaTeX tables and Mermaid architecture diagrams. | Every metric in all tables is 100% empirically measured from actual Colab T4 evaluation runs (zero synthetic or estimated figures). |
+Mutee supplied 80 ratings for the current four-condition study. No independent Abdullah ratings were supplied for that study. Preserve original scores and log any human clarifications; AI must not fill either reviewer's scores.
 
----
+The versioned live smoke and 03D v2 notebooks are prepared for Colab GPU execution. Their outputs and the protected browser preview have not been verified by this CPU remediation. Do not claim all code was tested on T4 or every metric is validated. Legacy inpainting LoRA claims are excluded from current CatVTON conclusions.
 
-## 2. Data Ethics & Minor Privacy Policy
-1. **Commercial Catalogs Only:** All adult and kids' images originate exclusively from public Pakistani fashion brand catalogs (Generation, Ethnc, Limelight, Peraan). Zero private social media or personal photos of minors are collected or stored.
-2. **In-Memory Inference:** User-uploaded images in the live web application are processed transiently in memory for try-on generation and are never persisted to a database or reused for training.
-3. **Zero-Leakage Scientific Integrity:** Raw crawls were audited for duplicate `.source.*` twin files (597 removed via SHA-256 and perceptual `dHash`), and all train/test splits are strictly disjoint at the outfit SKU level (`validate_zero_leakage_sku_split()`).
+Live requests are intended for transient inference; explicit smoke/experiment workflows save selected evidence on the user's Drive. Do not make a blanket claim that images are never persisted. Do not publish private images, mappings, ratings or tokens. Synthetic demo avatars must stay identified and separate from real-person evaluation.
+
+Exposure/repeated catalog subjects limit generalization even with disjoint SKU groups. Neither visual identity scores nor cross-age appearance transfer establishes exact fit, age-conditioned training, or production safety.

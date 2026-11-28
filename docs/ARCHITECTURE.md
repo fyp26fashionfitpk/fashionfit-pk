@@ -1,49 +1,23 @@
-# System Architecture & Detailed Design — FashionFit-PK
-
-## 1. High-Level System Architecture
-
-```mermaid
-flowchart LR
-    U["User Browser"] --> FE["React + Vite Frontend\n(Vercel Cloud)"]
-    FE --> API["Serverless API Gateway\n(/api/health, /api/gemini-*)"]
-    API --> BE["FastAPI Inference Service\n(Colab T4 GPU / Backend)"]
-    BE --> SEG["Gold SegFormer-B2\n(4-Class Pakistani Parser)"]
-    SEG --> MASK["Mask Engine (lib/mask_utils.py)\nDupatta Preservation + Flared A-Line"]
-    MASK --> VTON["CatVTON + Pakistani LoRA\n(Diffusion Try-On Generator)"]
-    VTON --> BE
-    BE --> FE
-```
-
-## 2. Detailed ML Inference Pipeline
+# Current architecture — FashionFit-PK
 
 ```mermaid
 flowchart TD
-    P["Person Photo (RGB)"] --> S["SegFormer-B2 4-Class Parser"]
-    S --> C0["Class 0: other (face, hands, bg)"]
-    S --> C1["Class 1: kurta_kameez"]
-    S --> C2["Class 2: bottom (shalwar / lehenga)"]
-    S --> C3["Class 3: dupatta"]
-
-    C1 --> M["Mask Builder (mode: upper / full / flared_lehenga)"]
-    C2 --> M
-    C3 --> SUB["Subtract Dupatta Layer\n(Preserve Draped Scarf)"]
-    M --> SUB
-
-    G["Target Pakistani Garment"] --> CAN["Garment Canonicalizer"]
-    SUB --> CAT["CatVTON Spatial Concatenation\n+ Rank-16 Pakistani LoRA"]
-    P --> CAT
-    CAN --> CAT
-    CAT --> OUT["Final Try-On Output (RGB)"]
+ B[React/Vite studio] --> A[Authenticated temporary Colab worker]
+ B --> P[Optional local proxy]
+ P --> A
+ A --> S[Baseline or adapted four-class SegFormer]
+ S --> M[Target edit mask; protected dupatta excluded]
+ M --> C[Pretrained author CatVTON; no validated Pakistani LoRA]
+ A --> F[FASHN v1.5; internal parsing and photo-type processing]
+ C --> R[Returned image and provenance]
+ F --> R
+ R --> B
 ```
 
-## 3. Repository Directory Architecture (Industry Standard)
+The native FASHN masking comparison is a separate experiment. V4 masks are not passed into FASHN. Model-worn donors and visible-fabric pseudo-cutouts are distinct reference types. The live smoke helper builds CatVTON's pseudo-reference from a reviewed class-1 source mask and records it; FASHN receives the original donor photo. No hidden fabric is reconstructed.
 
-| Directory | Responsibility |
-|---|---|
-| `src/` | Production full-stack source (`frontend/`, `backend/`, `api/`, `colab_server/`) |
-| `lib/` | Reusable Python ML core (`mask_utils.py`, `metrics.py`) |
-| `bin/` | Executable shell & profiling scripts (MIT Missing Semester) |
-| `docs/` | Formal FYP I documentation, architecture, test cases, defense PPTX |
-| `tests/` | Automated unit and contract tests (`unittest`) |
-| `research/` | Reproducible FYP2 & V3 training/evaluation notebooks and empirical artifacts |
-| `.github/workflows/` | Automated Continuous Integration (`ci.yml`) |
+One worker thread owns bounded admitted jobs. Timeout/disconnect does not imply GPU cancellation. The live notebook allows 1800 seconds including loading; clients wait 1860 seconds. Competing VTON models are evicted on switch. Tokens remain session-private.
+
+The browser stores the completed run's settings with its result; request identity blocks stale updates. Gemini and synthesized additional views stay disabled by default. Back-view fidelity is unproven.
+
+Frozen inputs, runtime/model identities, per-output sidecars and separate human review files provide traceability. Full adult bridal capability remains unvalidated. Old architecture diagrams are archived under legacy_unverified and are superseded.

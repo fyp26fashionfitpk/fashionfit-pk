@@ -98,7 +98,13 @@ describe('StudioPage Rendered Component Lifecycle & Request Ownership', () => {
 
     await waitFor(() => expect(screen.getByText(/Live Output • catvton/i)).toBeTruthy())
     expect(screen.getByText(/config\.json:4584bad889/i)).toBeTruthy()
-    expect(screen.getByRole('button', { name: /Download PNG/i })).toBeTruthy()
+    const click=vi.spyOn(HTMLAnchorElement.prototype,'click').mockImplementation(function () {})
+    const append=vi.spyOn(document.body,'appendChild')
+    fireEvent.click(screen.getByRole('button', { name: /Download PNG/i }))
+    expect(click).toHaveBeenCalledTimes(1)
+    const anchor=append.mock.calls.map(([el])=>el).find(el=>el.tagName==='A')
+    expect(anchor.getAttribute('href')).toBe('data:image/png;base64,iVBORw0KGgo=')
+    expect(anchor.download).toBe('fashionfit_adult_upper_catvton_front.png')
   })
 
   it('invalidates pending VTON when category/model changes mid-flight and ignores late response', async () => {

@@ -29,6 +29,55 @@ def _save_dummy(path: Path, color: tuple[int, int, int]) -> None:
 
 
 class TestFashnSegFreeRunnerSoftware(unittest.TestCase):
+    def test_verified_case_loader_rejects_changed_or_non_test_inputs(self):
+        import csv
+        with tempfile.TemporaryDirectory() as td_str:
+            root=Path(td_str);cases,inv=self._make_fixtures(root)
+            cases=[dict(cases[0],case_id=f'C{i:03}') for i in range(1,21)]
+            def write(p,rows):
+                p.parent.mkdir(parents=True,exist_ok=True)
+                with p.open('w',newline='') as f:
+                    w=csv.DictWriter(f,fieldnames=list(rows[0]));w.writeheader();w.writerows(rows)
+            write(root/'05_SPLITS/cases.csv',cases)
+            frozen=[dict(r,split='test') for r in inv.values()];write(root/'05_SPLITS/frozen.csv',frozen)
+            folder=root/'10_RUNS/benchmark_baseline_fashn_vton_1_5';folder.mkdir(parents=True)
+            (folder/'protocol.json').write_text(json.dumps(dict(cases=cases,inputs={i:dict(image=runner.sha256_file(Path(r['image_path']))) for i,r in inv.items()})))
+            self.assertEqual(len(runner.load_verified_cases(root)[0]),20)
+            frozen[0]['split']='train';write(root/'05_SPLITS/frozen.csv',frozen)
+            with self.assertRaises(ValueError):runner.load_verified_cases(root)
+
+    def test_pair_mode_and_review_preservation(self):
+        import copy
+        with tempfile.TemporaryDirectory() as td_str:
+            td=Path(td_str);cases,inv=self._make_fixtures(td);out=td/'run'
+            infer=lambda p,d,c,sf,s: {'image':p.copy(),'seconds':.1,'peak_vram_mb':1}
+            runner.run_fashn_segfree_control(cases=cases,inventory=inv,out_dir=out,infer_fn=infer)
+            for change in [dict(source_image_id='IMG_P1',target_image_id='IMG_D1'),dict(mode='full_outfit'),dict(scenario='child_to_child')]:
+                altered=copy.deepcopy(cases);altered[0].update(change)
+                with self.assertRaises(ValueError):runner.run_fashn_segfree_control(cases=altered,inventory=inv,out_dir=out,infer_fn=infer)
+            review=out/'review_packet_03D.csv'
+            import csv,io
+            rows=list(csv.DictReader(io.StringIO(review.read_text())));fields=list(rows[0]);rows[0]['notes']='Human note, "keep unchanged"'
+            buf=io.StringIO(newline='');w=csv.DictWriter(buf,fieldnames=fields);w.writeheader();w.writerows(rows);review.write_text(buf.getvalue(),encoding='utf-8')
+            original=review.read_bytes()
+            runner.run_fashn_segfree_control(cases=cases,inventory=inv,out_dir=out,infer_fn=infer)
+            self.assertEqual(review.read_bytes(),original)
+
+    def test_smoke_to_full_reuses_completed_and_rejects_orphan(self):
+        with tempfile.TemporaryDirectory() as td_str:
+            td=Path(td_str);cases,inv=self._make_fixtures(td);cases.append(dict(cases[0],case_id='C002'))
+            calls=[]
+            def infer(p,d,c,sf,s):calls.append(sf);return {'image':p.copy(),'seconds':.1,'peak_vram_mb':1}
+            out=td/'run'
+            runner.run_fashn_segfree_control(cases=cases,inventory=inv,out_dir=out,infer_fn=infer,selected_case_ids=['C001'])
+            result=runner.run_fashn_segfree_control(cases=cases,inventory=inv,out_dir=out,infer_fn=infer)
+            self.assertEqual(len(calls),4);self.assertEqual(result['counts']['resumed'],2)
+            result=runner.run_fashn_segfree_control(cases=cases,inventory=inv,out_dir=out,infer_fn=infer,selected_case_ids=['C001'])
+            self.assertEqual(result['counts']['succeeded'],4);self.assertTrue(result['complete'])
+            (out/'outputs/C001__segfree_true.json').unlink()
+            result=runner.run_fashn_segfree_control(cases=cases,inventory=inv,out_dir=out,infer_fn=infer)
+            self.assertEqual(len(calls),4);self.assertEqual(result['counts']['corrupt_flagged'],1)
+
     def _make_fixtures(self, td: Path):
         p1 = td / "imgs" / "p1.png"
         d1 = td / "imgs" / "d1.png"

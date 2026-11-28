@@ -48,11 +48,12 @@ def code(text: str) -> dict:
 
 core_source = CORE_PY.read_text(encoding="utf-8")
 core_sha256 = hashlib.sha256(core_source.encode("utf-8")).hexdigest()
+smoke_source=(HERE/'live_smoke_inputs.py').read_text(encoding='utf-8')
 
 nb = {
     "cells": [
         md(
-            "# FashionFit-PK V4.2 — Reproducible Authenticated Colab GPU Worker\n\n"
+            "# FashionFit-PK V4.3 — Reproducible Authenticated Colab GPU Worker\n\n"
             "**Interactive Research & Demo Worker (temporary tunnel — NOT 24/7 public hosting).**\n\n"
             f"- Embedded `v4_worker_core.py` SHA-256: `{core_sha256}`\n"
             f"- Expected `{CODE_ZIP_NAME}` SHA-256: `{EXPECTED_CODE_ZIP_SHA256}`\n"
@@ -118,6 +119,7 @@ print('Verified imports & adapter signatures cleanly.')
 """
         ),
         code("%%writefile /content/v4_worker_core.py\n" + core_source),
+        code("%%writefile /content/live_smoke_inputs.py\n" + smoke_source),
         code(
             f"""
 %%writefile /content/v4_gpu_api.py
@@ -165,6 +167,7 @@ app = create_worker_app(
     overlay_builder=overlay,
     cleanup_gpu_fn=_cleanup_gpu,
     max_queue=2,
+    inference_timeout_s=1800.0,  # Includes cold model loading; slot stays owned after HTTP timeout.
 )
 """
         ),
@@ -223,7 +226,7 @@ if not tunnel_url:
     raise RuntimeError('Cloudflare tunnel timed out after 30s. Log:\\n' + cf_log_path.read_text()[-1500:])
 
 print('=' * 72)
-print('LIVE V4.2 COLAB GPU URL:', tunnel_url)
+print('LIVE V4.3 COLAB GPU URL:', tunnel_url)
 print('BEARER ACCESS TOKEN:    ', os.environ['FF_SERVER_TOKEN'])
 print('=' * 72)
 """
@@ -235,12 +238,15 @@ import base64, csv, io, json, os, threading, time
 from pathlib import Path
 import requests
 from PIL import Image
+import sys
+sys.path.insert(0, '/content')
+from live_smoke_inputs import prepare_smoke_inputs
 
 BASE_URL = 'http://127.0.0.1:8000'
 TOKEN = os.environ['FF_SERVER_TOKEN']
 AUTH = {'Authorization': f'Bearer {TOKEN}'}
 V4_ROOT = Path(os.environ['FF_V4_ROOT'])
-SMOKE_OUT = V4_ROOT / '10_RUNS' / 'live_worker_real_inference_smoke_v4_2'
+SMOKE_OUT = V4_ROOT / '10_RUNS' / 'live_worker_real_inference_smoke_v4_3'
 SMOKE_OUT.mkdir(parents=True, exist_ok=True)
 
 # 1. Verify invalid vs valid auth
@@ -249,18 +255,16 @@ assert r_bad.status_code == 401, f'Expected 401 on wrong token, got {r_bad.statu
 r_ok = requests.get(f'{BASE_URL}/auth/verify', headers=AUTH, timeout=5)
 assert r_ok.status_code == 200, f'Expected 200 on valid token, got {r_ok.status_code}'
 
-# 2. Pick first real held-out adult case from frozen cases.csv
-with (V4_ROOT / '05_SPLITS' / 'cases.csv').open() as f:
-    first_case = next(c for c in csv.DictReader(f) if c['scenario'] == 'adult_to_adult')
-with (V4_ROOT / '03_METADATA' / 'inventory.csv').open() as f:
-    inv = {r['image_id']: r for r in csv.DictReader(f)}
-
-person_path = Path(inv[first_case['target_image_id']]['image_path'])
-donor_path = Path(inv[first_case['source_image_id']]['image_path'])
+# 2. Prepare a visible-fabric cutout for CatVTON and original model photo for FASHN.
+inputs=prepare_smoke_inputs(V4_ROOT, SMOKE_OUT)
+first_case=inputs['case']
+person_path=Path(inputs['person_path'])
+donor_path=Path(inputs['donor_model_photo'])
+cat_reference_path=Path(inputs['catvton_reference'])
 
 # 3. Real /segment call
 with person_path.open('rb') as fp:
-    r_seg = requests.post(f'{BASE_URL}/segment', headers=AUTH, data={'seg_variant': 'adapted'}, files={'image': ('person.jpg', fp, 'image/jpeg')}, timeout=120)
+    r_seg = requests.post(f'{BASE_URL}/segment', headers=AUTH, data={'seg_variant': 'adapted'}, files={'image': ('person.png', fp, 'image/png')}, timeout=1860)
 assert r_seg.status_code == 200, r_seg.text
 seg_json = r_seg.json()
 
@@ -274,12 +278,12 @@ def _probe_health():
 
 probe_t = threading.Thread(target=_probe_health)
 probe_t.start()
-with person_path.open('rb') as fp, donor_path.open('rb') as fg:
+with person_path.open('rb') as fp, cat_reference_path.open('rb') as fg:
     r_cat = requests.post(
         f'{BASE_URL}/vton', headers=AUTH,
         data={'model_id': 'catvton', 'category': 'adult_upper', 'tryon_mode': 'upper_body', 'garment_photo_type': 'flat-lay', 'person_age_group': 'adult', 'seed': '42'},
-        files={'person_image': ('p.jpg', fp, 'image/jpeg'), 'garment_image': ('g.jpg', fg, 'image/jpeg')},
-        timeout=300,
+        files={'person_image': ('p.png', fp, 'image/png'), 'garment_image': ('g.png', fg, 'image/png')},
+        timeout=1860,
     )
 probe_t.join()
 assert r_cat.status_code == 200, r_cat.text
@@ -294,8 +298,8 @@ with person_path.open('rb') as fp, donor_path.open('rb') as fg:
     r_fashn = requests.post(
         f'{BASE_URL}/vton', headers=AUTH,
         data={'model_id': 'fashn_vton_1_5', 'category': 'adult_upper', 'tryon_mode': 'upper_body', 'garment_photo_type': 'model', 'person_age_group': 'adult', 'seed': '42'},
-        files={'person_image': ('p.jpg', fp, 'image/jpeg'), 'garment_image': ('g.jpg', fg, 'image/jpeg')},
-        timeout=600,
+        files={'person_image': ('p.png', fp, 'image/png'), 'garment_image': ('g.png', fg, 'image/png')},
+        timeout=1860,
     )
 assert r_fashn.status_code == 200, r_fashn.text
 fashn_json = r_fashn.json()
@@ -317,12 +321,14 @@ evidence = {
             + EXPECTED_CODE_ZIP_SHA256
             + """',
     'case_id': first_case['case_id'],
+    'input_provenance': inputs,
     'segment': {k: v for k, v in seg_json.items() if 'image' not in k},
     'catvton': {k: v for k, v in cat_json.items() if k != 'result_image'},
     'fashn': {k: v for k, v in fashn_json.items() if k != 'result_image'},
     'health_during_catvton': health_during_run,
     'health_after_model_switch': health_after,
 }
+assert health_during_run and all(p['status']==200 for p in health_during_run), 'Health responsiveness was not verified'
 (SMOKE_OUT / 'real_inference_smoke_evidence.json').write_text(json.dumps(evidence, indent=2), encoding='utf-8')
 print('REAL GPU INFERENCE SMOKE PASSED! Evidence saved to:', SMOKE_OUT)
 """

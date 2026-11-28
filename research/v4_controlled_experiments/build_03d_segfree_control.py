@@ -11,7 +11,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 RUNNER_PY = HERE / "fashn_segfree_runner.py"
-OUT_NB = HERE / "03D_FASHN_SegmentationFree_Control_v1.ipynb"
+OUT_NB = HERE / "03D_FASHN_SegmentationFree_Control_v2.ipynb"
 
 
 def md(text: str) -> dict:
@@ -28,7 +28,7 @@ nb = {
     "cells": [
         md(
             "# 03D — Controlled Quality Experiment: FASHN VTON 1.5 `segmentation_free=True` vs `segmentation_free=False`\n\n"
-            "- Distinct experiment ID (`03D_FASHN_SegmentationFree_Control_v1`) to avoid confusion with earlier `03C` runs.\n"
+            "- Version 2 freezes full case definitions and preserves reviews. Earlier artifacts stay unchanged.\n"
             "- Uses pinned official `fashn-AI/fashn-vton-1.5@7c0f10af3f91ad4048fe9729c470a13ef905d25a`.\n"
             "- Uses FASHN's internal parser when `segmentation_free=False` (NOT V4 SegFormer).\n"
             "- Freezes `protocol.json`, writes atomic per-case sidecars, resumes only hash-verified outputs, flags corrupt outputs, and generates paired comparison galleries + a separate review packet."
@@ -54,7 +54,7 @@ subprocess.run(['pip', 'install', '-q', '--no-deps', 'git+https://github.com/fas
 from fashn_vton import TryOnPipeline
 from huggingface_hub import hf_hub_download, snapshot_download
 sys.path.insert(0, '/content')
-from fashn_segfree_runner import run_fashn_segfree_control
+from fashn_segfree_runner import run_fashn_segfree_control, load_verified_cases
 
 HF_REV = '7720683168567eb5a2a4c67f15116c6e29c83ded'
 weights_dir = snapshot_download('fashn-ai/fashn-vton-1.5', revision=HF_REV)
@@ -67,10 +67,7 @@ for fn in ('yolox_l.onnx', 'dw-ll_ucoco_384.onnx'):
 
 pipe = TryOnPipeline(weights_dir=weights_dir)
 
-with (V4_ROOT / '05_SPLITS' / 'cases.csv').open() as f:
-    cases = list(csv.DictReader(f))
-with (V4_ROOT / '03_METADATA' / 'inventory.csv').open() as f:
-    inv = {r['image_id']: r for r in csv.DictReader(f)}
+cases,inv=load_verified_cases(V4_ROOT)
 
 def _infer(person, donor, category, seg_free, seed):
     t0 = time.perf_counter()
@@ -88,12 +85,20 @@ def _infer(person, donor, category, seg_free, seed):
         'peak_vram_mb': round(torch.cuda.max_memory_allocated() / (1024**2), 1),
     }
 
-out_dir = V4_ROOT / '10_RUNS' / ('03D_fashn_segfree_smoke_v1' if SMOKE_ONLY else '03D_fashn_segfree_full20_v1')
+out_dir = V4_ROOT / '10_RUNS' / '03D_fashn_segfree_control_v2'
 summary = run_fashn_segfree_control(
     cases=cases, inventory=inv, out_dir=out_dir, infer_fn=_infer,
     selected_case_ids=SMOKE_CASES if SMOKE_ONLY else None,
+    runtime_identity={'gpu':torch.cuda.get_device_name(0),'torch':torch.__version__,'dtype':str(pipe.inference_dtype)},
 )
 print('03D SUMMARY:', summary)
+if summary['counts']['failed'] or summary['counts']['corrupt_flagged']:
+    raise RuntimeError('Inspect failed/corrupt records before proceeding.')
+from IPython.display import display
+from PIL import Image
+for p in sorted((out_dir/'galleries').glob('*.png')):
+    with Image.open(p) as im:display(im.copy())
+print('Inspect all four smoke pairs before setting SMOKE_ONLY=False. The same folder then resumes verified outputs.')
 """
         ),
     ],

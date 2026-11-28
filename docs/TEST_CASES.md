@@ -19,7 +19,7 @@
 |---|---|---|---|
 | **GPU-01** | Live Worker | Execute regenerated `FashionFit_PK_Live_GPU_Server.ipynb` on Colab T4/L4 GPU and verify `FashionFit_Advisor_V4_Code_v4_2.zip` + `universal_b2` manifest hashes | **Awaiting Colab GPU** |
 | **GPU-02** | Live Inference | Run real `/segment`, `catvton` `/vton`, and `fashn_vton_1_5` `/vton` smoke workflow + concurrent `/health` probe | **Awaiting Colab GPU** |
-| **GPU-03** | Quality Exp | Run `03D_FASHN_SegmentationFree_Control_v1.ipynb` (`SMOKE_ONLY=True` 4 cases) on Colab GPU | **Awaiting Colab GPU** |
+| **GPU-03** | Quality Exp | Run `03D_FASHN_SegmentationFree_Control_v2.ipynb` (`SMOKE_ONLY=True` 4 cases) on Colab GPU | **Awaiting Colab GPU** |
 | **MAN-01** | Human Review | Mutee clarifies `BLIND_068`, `BLIND_080`, `BLIND_060`, `BLIND_015` from private clarification sheet | **Pending Reviewer** |
 | **MAN-02** | Bridal Scope | Collect & review independent adult separate `lehenga_choli` donor references for bridal evaluation | **Pending Data/Review** |
 | **MAN-03** | FoS Compliance | Students manually review & sign off this test-case matrix | **Pending Student Sign-off** |
