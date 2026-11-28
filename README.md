@@ -69,3 +69,7 @@ cd src/frontend && npm ci && npm test && npm run build
 * [Test Cases Checklist (Pending Manual Student Review)](docs/TEST_CASES.md)
 * [MIT Missing Semester Applied Practices](docs/MISSING_SEMESTER_APPLIED.md)
 * [AI Usage Transparency & Data Ethics](docs/AI_USAGE_AND_ETHICS.md)
+
+## Current Colab smoke handover
+
+Use the corrected live smoke notebook first, then `research/v4_controlled_experiments/03D_FASHN_SegmentationFree_Control_v2.ipynb` with SMOKE_ONLY=True. See `docs/COLAB_SMOKE_RUN_ORDER_2026-11-28.txt`. These notebooks are CPU-checked execution packages, not evidence of completed new GPU runs. Old 03C and 03D v1 outputs stay unchanged.
