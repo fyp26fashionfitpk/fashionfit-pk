@@ -170,10 +170,16 @@ def run_fashn_segfree_control(
             atomic_write_text(sidecar_path, json.dumps(rec, indent=2))
             records.append(rec)
 
-        # Build paired comparison gallery if both conditions succeeded
+        # Build paired comparison gallery ONLY if both conditions succeeded and are uncorrupted
+        case_recs = {r["segmentation_free"]: r for r in records if r.get("case_id") == cid}
         p_true = out_dir / "outputs" / f"{cid}__segfree_true.png"
         p_false = out_dir / "outputs" / f"{cid}__segfree_false.png"
-        if p_true.is_file() and p_false.is_file():
+        if (
+            case_recs.get(True, {}).get("status") == "succeeded"
+            and case_recs.get(False, {}).get("status") == "succeeded"
+            and p_true.is_file()
+            and p_false.is_file()
+        ):
             gal = Image.new("RGB", (1200, 430), "white")
             draw = ImageDraw.Draw(gal)
             imgs = [
