@@ -9,7 +9,7 @@ import {
   SlidersHorizontal,
 } from 'lucide-react'
 import StudioPage from './pages/StudioPage.jsx'
-import { STUDIO_POSES, PREDEFINED_KURTAS } from './data/verifiedData.js'
+import { STUDIO_POSES, WARDROBE_CATEGORIES } from './data/verifiedData.js'
 
 const FAQS = [
   {
@@ -39,9 +39,18 @@ export default function App() {
   const [studioInitTab, setStudioInitTab] = useState('photo')
   const [studioInitKurta, setStudioInitKurta] = useState(null)
 
-  const [health, setHealth] = useState({ mode: 'standby', colab_gpu_url: null })
+  const [health, setHealth] = useState({
+    mode: 'frontend_standby',
+    process_alive: true,
+    gpu_accessible: false,
+    model_loaded: false,
+    queue_accepting: false,
+    colab_gpu_url: null,
+  })
   const [openFaq, setOpenFaq] = useState(0)
+  const [homeCategory, setHomeCategory] = useState('kurta')
   const [colabUrlInput, setColabUrlInput] = useState('')
+  const [colabTokenInput, setColabTokenInput] = useState('')
   const [colabStatusMsg, setColabStatusMsg] = useState('')
 
   useEffect(() => {
@@ -68,11 +77,21 @@ export default function App() {
     setRoute('home')
   }
 
-  const checkDirectColabHealth = async (rawUrl) => {
+  const checkDirectColabHealth = async (rawUrl, rawToken = colabTokenInput) => {
     const cleaned = (rawUrl || '').trim().replace(/\/+$/, '')
+    const token = (rawToken || '').trim()
     if (!cleaned) {
       localStorage.removeItem(STORAGE_KEY)
-      setHealth({ mode: 'standby', colab_gpu_url: null })
+      setHealth({
+        mode: 'frontend_standby',
+        process_alive: true,
+        gpu_accessible: false,
+        files_verified: false,
+        model_loaded: false,
+        authenticated: false,
+        queue_accepting: false,
+        colab_gpu_url: null,
+      })
       setColabStatusMsg('')
       return false
     }
@@ -80,21 +99,65 @@ export default function App() {
       const res = await fetch(`${cleaned}/health`)
       if (res.ok) {
         const data = await res.json()
+        let authenticated = !data.auth_required
+        let authError = ''
+        if (data.auth_required) {
+          if (!token) {
+            authenticated = false
+            authError = 'Bearer token required.'
+          } else {
+            try {
+              const authRes = await fetch(`${cleaned}/auth/verify`, {
+                headers: { Authorization: `Bearer ${token}` },
+              })
+              authenticated = authRes.ok
+              if (!authRes.ok) authError = `Token rejected (HTTP ${authRes.status}).`
+            } catch {
+              authenticated = false
+              authError = 'Could not verify Bearer token.'
+            }
+          }
+        }
         localStorage.setItem(STORAGE_KEY, cleaned)
         setHealth({
           mode: 'colab_gpu_live',
           colab_gpu_url: cleaned,
-          gpu: data.gpu || 'Live Studio Server',
+          process_alive: Boolean(data.process_alive),
+          gpu_accessible: Boolean(data.gpu_accessible),
+          files_verified: Boolean(data.files_verified),
+          model_loaded: Boolean(data.model_loaded),
+          model_states: data.model_states || {},
+          queue_accepting: Boolean(data.queue_accepting),
+          queue_depth: Number(data.queue_depth || 0),
+          auth_required: Boolean(data.auth_required),
+          authenticated,
+          parser: data.parser || 'unknown',
+          checkpoint_provenance: data.checkpoint_provenance || null,
+          supported_categories: data.supported_categories || [],
+          gpu: data.gpu || 'V4 GPU Worker',
           direct: true,
         })
-        setColabStatusMsg('Connected to live studio server.')
+        setColabStatusMsg(
+          authenticated
+            ? `Connected & authenticated to ${data.gpu || 'V4 GPU'} (parser: ${data.parser || 'unknown'}, models: ${data.model_loaded ? 'warm' : 'cold — loads on first run'}).`
+            : `Reachable (${data.gpu || 'V4 GPU'}), but not authenticated: ${authError}`
+        )
         return true
       }
     } catch {
       // fall through
     }
-    setHealth({ mode: 'standby', colab_gpu_url: null })
-    setColabStatusMsg('Could not reach server URL. Check that your server is running.')
+    setHealth({
+      mode: 'gpu_worker_unreachable',
+      process_alive: true,
+      gpu_accessible: false,
+      files_verified: false,
+      model_loaded: false,
+      authenticated: false,
+      queue_accepting: false,
+      colab_gpu_url: null,
+    })
+    setColabStatusMsg('Saved GPU worker URL is unreachable. Start your Colab V4 session or enter a new URL.')
     return false
   }
 
@@ -156,6 +219,8 @@ export default function App() {
         health={health}
         colabUrlInput={colabUrlInput}
         setColabUrlInput={setColabUrlInput}
+        colabTokenInput={colabTokenInput}
+        setColabTokenInput={setColabTokenInput}
         colabStatusMsg={colabStatusMsg}
         onSaveColabUrl={handleSaveColabUrl}
       />
@@ -229,9 +294,10 @@ export default function App() {
             </div>
 
             <div className="flex flex-wrap items-center gap-x-6 gap-y-2 pt-2 text-xs font-medium text-slate-500">
-              <span>✓ True knee-length drape</span>
-              <span>✓ Embroidery preserved</span>
-              <span>✓ 3 studio poses</span>
+              <span>✓ Women’s Kurtas</span>
+              <span>✓ Kids (Girls) &amp; Cross-Age</span>
+              <span>✓ Flared Wedding Lehengas</span>
+              <span>✓ 3 Studio Poses</span>
             </div>
           </div>
 
@@ -324,23 +390,32 @@ export default function App() {
       {/* Curated Predefined Pakistani Kurta Wardrobe */}
       <section id="wardrobe" className="py-24 bg-[#FAF8F5] border-t border-slate-200/70">
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
-          <div className="flex flex-wrap items-end justify-between gap-4 mb-14">
+          <div className="flex flex-wrap items-end justify-between gap-4 mb-10">
             <div>
               <p className="text-xs font-bold uppercase tracking-widest text-[#9B1D4A] mb-2">Ready-to-Try Collection</p>
               <h2 className="font-display text-3xl sm:text-4xl font-bold text-slate-900">
-                Pick a Kurta &amp; Try It On
+                Women’s Kurtas, Kids &amp; Wedding Lehengas
               </h2>
             </div>
-            <button
-              onClick={() => navigateToStudio('photo')}
-              className="text-sm font-semibold text-[#0F5C4D] hover:underline flex items-center gap-1.5 cursor-pointer"
-            >
-              Or upload your own kurta <ArrowRight className="w-4 h-4" />
-            </button>
+            <div className="inline-flex gap-1.5 bg-white p-1.5 rounded-full border border-slate-200/80 shadow-xs">
+              {WARDROBE_CATEGORIES.map((cat) => (
+                <button
+                  key={cat.id}
+                  onClick={() => setHomeCategory(cat.id)}
+                  className={`px-4 py-1.5 rounded-full text-xs font-bold transition cursor-pointer ${
+                    homeCategory === cat.id
+                      ? 'bg-slate-900 text-white'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  {cat.label}
+                </button>
+              ))}
+            </div>
           </div>
 
           <div className="grid sm:grid-cols-3 gap-7">
-            {PREDEFINED_KURTAS.map((kurta) => (
+            {(WARDROBE_CATEGORIES.find((c) => c.id === homeCategory) || WARDROBE_CATEGORIES[0]).items.map((kurta) => (
               <div
                 key={kurta.id}
                 onClick={() => navigateToStudio('photo', kurta.id)}

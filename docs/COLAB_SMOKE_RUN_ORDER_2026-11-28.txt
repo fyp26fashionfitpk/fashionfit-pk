@@ -1,0 +1,49 @@
+FASHIONFIT - COLAB SMOKE RUN ORDER - 28 NOVEMBER 2026
+
+1. Open the corrected live smoke notebook:
+https://colab.research.google.com/drive/1_fGqQX21SAkSWFLslbnwoLwz48pU-5Er
+Select Runtime > Change runtime type > T4 GPU, then run all cells from the top.
+Mount your existing Google Drive when prompted. No dataset upload is needed.
+Keep the session URL/token private and remove credentials from shared notebook outputs.
+
+The notebook verifies the versioned code package and checkpoint, starts the
+worker, and calls real segmentation, CatVTON and FASHN. CatVTON receives a
+reviewed visible-fabric pseudo-cutout; FASHN receives the original donor photo.
+HTTP budgets allow cold loading; they are not performance guarantees.
+
+Success requires REAL GPU INFERENCE SMOKE PASSED and these files under:
+MyDrive/FashionFit_PK_Advisor_V4_2026-11-26/10_RUNS/live_worker_real_inference_smoke_v4_3/
+  real_inference_smoke_evidence.json
+  smoke_catvton.png
+  smoke_fashn.png
+  input_provenance.json
+  source_visible_kurta_pseudo_cutout.png
+
+Share the results location for inspection. This adult smoke does not validate
+all categories, the external website connection or production readiness.
+
+2. After inspecting live smoke results, open the masking experiment:
+https://colab.research.google.com/drive/121PWupLNkn7pVkSHWuBbQVl3qeyJXQlP
+Use T4 GPU. Leave SMOKE_ONLY=True and run all cells.
+Four cases x two conditions generate eight images.
+Outputs: 10_RUNS/03D_fashn_segfree_control_v2/galleries/
+Expected initial counts: planned 40, scheduled 8, succeeded 8, failed 0,
+corrupt_flagged 0, not_run 32. complete=false is EXPECTED at this stage.
+
+3. Inspect all four pairs before expanding the experiment.
+Only after inspection set SMOKE_ONLY=False and rerun configuration/generation.
+Keep the same GPU/environment; verified smoke outputs resume in the same folder.
+Full completion is 40 successful images: 20 cases x two conditions.
+Existing 03C, 03D v1 and the 80-output review are preserved.
+The new condition-labelled review CSV is exploratory, not blinded evidence.
+Human notes survive reruns. Changed inputs/protocols and orphan outputs are
+refused or flagged; investigate these before continuing.
+
+4. Remaining requirements after these runs:
+website/browser connection verification; child and both cross-age live checks;
+adult separate lehenga/choli evaluation; reviewer clarification; student and
+university administrative sign-offs. Production is not approved.
+
+Local verification: 27 Python tests, 8 Node tests, 3 rendered React tests,
+clean npm ci and frontend build. Notebook syntax/embedded identities checked.
+New GPU inference was not performed on the laptop.

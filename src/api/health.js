@@ -1,13 +1,15 @@
 export default function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
   return res.status(200).json({
+    schema_version: 'v4.0',
     status: 'ok',
-    mode: 'standby',
+    mode: 'frontend_standby',
+    process_alive: true,
+    gpu_accessible: false,
+    model_loaded: false,
+    queue_accepting: false,
     colab_gpu_url: null,
-    models: [
-      { id: 'segformer_b2_clothes', name: 'SegFormer-B2 Clothes (4-Class Visible)', task: 'segmentation' },
-      { id: 'catvton', name: 'CatVTON (Inpainting)', task: 'vton' },
-      { id: 'fashn_vton_1_5', name: 'FASHN VTON v1.5', task: 'vton' },
-    ],
+    supported_categories: [],
+    note: 'Static frontend gateway is alive. Connect an authenticated V4 GPU worker for live neural try-on.',
   })
 }

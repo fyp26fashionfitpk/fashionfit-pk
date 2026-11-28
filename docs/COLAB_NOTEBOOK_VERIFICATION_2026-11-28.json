@@ -1,0 +1,14 @@
+[
+  {
+    "name": "FashionFit_PK_Live_GPU_Smoke_FIXED_2026-11-28.ipynb",
+    "drive_id": "1_fGqQX21SAkSWFLslbnwoLwz48pU-5Er",
+    "sha256": "ed4fc2fd77b47cc4c01f2cff753b96a490a89f3bc129942d2c2cf32c71fcb9a3",
+    "byte_verified": true
+  },
+  {
+    "name": "03D_FASHN_SegmentationFree_Control_v2.ipynb",
+    "drive_id": "121PWupLNkn7pVkSHWuBbQVl3qeyJXQlP",
+    "sha256": "fdce6c18549e3f903e42481e13b6dff53c12c247a9065c963dd37f53bd824579",
+    "byte_verified": true
+  }
+]
