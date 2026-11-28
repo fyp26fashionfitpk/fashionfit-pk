@@ -39,10 +39,18 @@ export default function App() {
   const [studioInitTab, setStudioInitTab] = useState('photo')
   const [studioInitKurta, setStudioInitKurta] = useState(null)
 
-  const [health, setHealth] = useState({ mode: 'standby', colab_gpu_url: null })
+  const [health, setHealth] = useState({
+    mode: 'frontend_standby',
+    process_alive: true,
+    gpu_accessible: false,
+    model_loaded: false,
+    queue_accepting: false,
+    colab_gpu_url: null,
+  })
   const [openFaq, setOpenFaq] = useState(0)
   const [homeCategory, setHomeCategory] = useState('kurta')
   const [colabUrlInput, setColabUrlInput] = useState('')
+  const [colabTokenInput, setColabTokenInput] = useState('')
   const [colabStatusMsg, setColabStatusMsg] = useState('')
 
   useEffect(() => {
@@ -69,11 +77,21 @@ export default function App() {
     setRoute('home')
   }
 
-  const checkDirectColabHealth = async (rawUrl) => {
+  const checkDirectColabHealth = async (rawUrl, rawToken = colabTokenInput) => {
     const cleaned = (rawUrl || '').trim().replace(/\/+$/, '')
+    const token = (rawToken || '').trim()
     if (!cleaned) {
       localStorage.removeItem(STORAGE_KEY)
-      setHealth({ mode: 'standby', colab_gpu_url: null })
+      setHealth({
+        mode: 'frontend_standby',
+        process_alive: true,
+        gpu_accessible: false,
+        files_verified: false,
+        model_loaded: false,
+        authenticated: false,
+        queue_accepting: false,
+        colab_gpu_url: null,
+      })
       setColabStatusMsg('')
       return false
     }
@@ -81,21 +99,65 @@ export default function App() {
       const res = await fetch(`${cleaned}/health`)
       if (res.ok) {
         const data = await res.json()
+        let authenticated = !data.auth_required
+        let authError = ''
+        if (data.auth_required) {
+          if (!token) {
+            authenticated = false
+            authError = 'Bearer token required.'
+          } else {
+            try {
+              const authRes = await fetch(`${cleaned}/auth/verify`, {
+                headers: { Authorization: `Bearer ${token}` },
+              })
+              authenticated = authRes.ok
+              if (!authRes.ok) authError = `Token rejected (HTTP ${authRes.status}).`
+            } catch {
+              authenticated = false
+              authError = 'Could not verify Bearer token.'
+            }
+          }
+        }
         localStorage.setItem(STORAGE_KEY, cleaned)
         setHealth({
           mode: 'colab_gpu_live',
           colab_gpu_url: cleaned,
-          gpu: data.gpu || 'Live Studio Server',
+          process_alive: Boolean(data.process_alive),
+          gpu_accessible: Boolean(data.gpu_accessible),
+          files_verified: Boolean(data.files_verified),
+          model_loaded: Boolean(data.model_loaded),
+          model_states: data.model_states || {},
+          queue_accepting: Boolean(data.queue_accepting),
+          queue_depth: Number(data.queue_depth || 0),
+          auth_required: Boolean(data.auth_required),
+          authenticated,
+          parser: data.parser || 'unknown',
+          checkpoint_provenance: data.checkpoint_provenance || null,
+          supported_categories: data.supported_categories || [],
+          gpu: data.gpu || 'V4 GPU Worker',
           direct: true,
         })
-        setColabStatusMsg('Connected to live studio server.')
+        setColabStatusMsg(
+          authenticated
+            ? `Connected & authenticated to ${data.gpu || 'V4 GPU'} (parser: ${data.parser || 'unknown'}, models: ${data.model_loaded ? 'warm' : 'cold — loads on first run'}).`
+            : `Reachable (${data.gpu || 'V4 GPU'}), but not authenticated: ${authError}`
+        )
         return true
       }
     } catch {
       // fall through
     }
-    setHealth({ mode: 'standby', colab_gpu_url: null })
-    setColabStatusMsg('Could not reach server URL. Check that your server is running.')
+    setHealth({
+      mode: 'gpu_worker_unreachable',
+      process_alive: true,
+      gpu_accessible: false,
+      files_verified: false,
+      model_loaded: false,
+      authenticated: false,
+      queue_accepting: false,
+      colab_gpu_url: null,
+    })
+    setColabStatusMsg('Saved GPU worker URL is unreachable. Start your Colab V4 session or enter a new URL.')
     return false
   }
 
@@ -157,6 +219,8 @@ export default function App() {
         health={health}
         colabUrlInput={colabUrlInput}
         setColabUrlInput={setColabUrlInput}
+        colabTokenInput={colabTokenInput}
+        setColabTokenInput={setColabTokenInput}
         colabStatusMsg={colabStatusMsg}
         onSaveColabUrl={handleSaveColabUrl}
       />

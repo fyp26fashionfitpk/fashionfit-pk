@@ -1,12 +1,33 @@
 #!/usr/bin/env python3
-"""Generate FashionFit_PK_Live_GPU_Server.ipynb for 1-click Colab T4 GPU live inference."""
+"""Generate FashionFit_PK_Live_GPU_Server.ipynb directly from colab_server/v4_worker_core.py.
+
+Enforces Phase 3 reproducibility requirements:
+1. Fails clearly if no Colab CUDA GPU is allocated.
+2. Verifies FashionFit_Advisor_V4_Code.zip against its trusted SHA-256 before extraction
+   and rejects unsafe ZipSlip archive paths.
+3. Verifies 09_MODELS/universal_b2/best_checkpoint against the exact expected manifest
+   from universal_test/protocol.json (distinguishing matched vs recorded).
+4. Verifies local worker /health BEFORE launching and announcing the temporary tunnel.
+5. Includes an executable smoke-test cell and machine-readable JSON evidence export.
+"""
 
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 
-OUT_NB = Path(__file__).resolve().parent / "FashionFit_PK_Live_GPU_Server.ipynb"
+HERE = Path(__file__).resolve().parent
+CORE_PY = HERE / "v4_worker_core.py"
+OUT_NB = HERE / "FashionFit_PK_Live_GPU_Server.ipynb"
+
+# Trusted SHA-256 values verified from V4 Drive artifacts (never invented):
+EXPECTED_CODE_ZIP_SHA256 = "84b862fca88cb0aed1656d2d674883db978742faaa5a818274e8d521ace01fb0"
+EXPECTED_UNIVERSAL_MANIFEST = {
+    "config.json": "4584bad889394a232e2603c1331dada5b50f60ef385e60f5d1f0d9d51033fcf8",
+    "model.safetensors": "3d62ea9e1c2807706096e568f7b8e467a3059b8ccfbe1be6e18de14515075a69",
+    "preprocessor_config.json": "5efb826f9a7f78c0316b914fe513a699a4410030110cede35f682055f22f0030",
+}
 
 
 def md(text: str) -> dict:
@@ -23,172 +44,182 @@ def code(text: str) -> dict:
     }
 
 
+core_source = CORE_PY.read_text(encoding="utf-8")
+core_sha256 = hashlib.sha256(core_source.encode("utf-8")).hexdigest()
+
 nb = {
     "cells": [
         md(
-            "# FashionFit-PK — Live Colab GPU Inference Server (`SegFormer-B2` + `FASHN VTON 1.5` + `CatVTON`)\n\n"
-            "Run all cells on a **Google Colab T4 / L4 GPU** runtime. It mounts your `FashionFit_PK_Research_V3_2026-11-17` "
-            "Google Drive package, loads your verified `fashionfit` adapters, starts FastAPI on port `8000`, and prints a free "
-            "`https://...trycloudflare.com` URL to paste into the FashionFit-PK Web App."
+            "# FashionFit-PK V4 — Reproducible Authenticated Colab GPU Worker\n\n"
+            "**Interactive Research & Demo Worker (temporary tunnel — NOT 24/7 public hosting).**\n\n"
+            f"- Embedded `v4_worker_core.py` SHA-256: `{core_sha256}`\n"
+            f"- Expected `FashionFit_Advisor_V4_Code.zip` SHA-256: `{EXPECTED_CODE_ZIP_SHA256}`\n"
+            "- Expected `universal_b2/best_checkpoint` verified against `universal_test/protocol.json` manifest.\n"
+            "- Fails closed if CUDA GPU, code ZIP hash, or checkpoint manifest does not match."
         ),
         code(
-            """
-from google.colab import drive
-import os, sys, subprocess
+            f"""
+import hashlib, os, secrets, zipfile
 from pathlib import Path
+import torch
+from google.colab import drive
+
+if not torch.cuda.is_available():
+    raise RuntimeError('No CUDA GPU allocated. In Colab: Runtime -> Change runtime type -> T4/L4 GPU.')
+print('Allocated GPU:', torch.cuda.get_device_name(0), '| Torch:', torch.__version__)
 
 drive.mount('/content/drive')
-ROOT = Path('/content/drive/MyDrive/FashionFit_PK_Research_V3_2026-11-17')
-CODE_DIR = ROOT / '07_CODE'
-assert CODE_DIR.exists(), f'Missing {CODE_DIR}'
+V4_ROOT = Path(os.environ.get('FF_V4_ROOT', '/content/drive/MyDrive/FashionFit_PK_Advisor_V4_2026-11-26'))
+assert V4_ROOT.exists(), f'Missing V4 root directory: {{V4_ROOT}}'
 
-!pip install -q fastapi uvicorn python-multipart "diffusers>=0.30" "transformers>=4.44,<4.49" accelerate huggingface_hub onnxruntime-gpu einops
+CODE_ZIP = V4_ROOT / '07_CODE' / 'FashionFit_Advisor_V4_Code.zip'
+EXPECTED_CODE_ZIP_SHA256 = '{EXPECTED_CODE_ZIP_SHA256}'
+assert CODE_ZIP.is_file(), f'Missing {{CODE_ZIP}}'
+
+h = hashlib.sha256(CODE_ZIP.read_bytes()).hexdigest()
+if h != EXPECTED_CODE_ZIP_SHA256:
+    raise ValueError(f'Code ZIP SHA-256 mismatch! Expected {{EXPECTED_CODE_ZIP_SHA256}}, got {{h}}')
+print('Verified FashionFit_Advisor_V4_Code.zip SHA-256:', h)
+
+CODE_DIR = Path('/content/fashionfit_v4_pkg').resolve()
+CODE_DIR.mkdir(parents=True, exist_ok=True)
+with zipfile.ZipFile(CODE_ZIP, 'r') as zf:
+    for member in zf.infolist():
+        dest = (CODE_DIR / member.filename).resolve()
+        if not str(dest).startswith(str(CODE_DIR)):
+            raise ValueError(f'Unsafe archive path rejected (ZipSlip guard): {{member.filename}}')
+    zf.extractall(CODE_DIR)
+print('Safely extracted V4 code package to:', CODE_DIR)
+
+os.environ['FF_V4_ROOT'] = str(V4_ROOT)
+os.environ['FF_SERVER_TOKEN'] = os.environ.get('FF_SERVER_TOKEN') or secrets.token_urlsafe(24)
+print('Session Bearer Token generated (keep private — never paste into public repos):', os.environ['FF_SERVER_TOKEN'])
+
+!pip install -q "fastapi>=0.115,<0.120" "uvicorn>=0.30,<0.35" "python-multipart>=0.0.9" "diffusers>=0.30,<0.33" "transformers>=4.44,<4.49" "accelerate>=0.33" huggingface_hub onnxruntime-gpu einops
 !pip install -q "git+https://github.com/fashn-AI/fashn-human-parser.git"
 !pip install -q --no-deps "git+https://github.com/fashn-AI/fashn-vton-1.5.git@7c0f10af3f91ad4048fe9729c470a13ef905d25a"
-!pip install -q --no-deps -e "{CODE_DIR}"
 !wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -O /usr/local/bin/cloudflared && chmod +x /usr/local/bin/cloudflared
 """
         ),
+        code("%%writefile /content/v4_worker_core.py\n" + core_source),
         code(
-            """
-%%writefile /content/gpu_api.py
-import base64, io, gc, torch, numpy as np
-from PIL import Image
-from fastapi import FastAPI, File, Form, UploadFile
-from fastapi.middleware.cors import CORSMiddleware
-from fashionfit.adapters.segformer import SegFormerClothesAdapter
-from fashionfit.adapters.fashn import FashnVtonAdapter
-from fashionfit.adapters.catvton import CatVtonAdapter
-from fashionfit.reporting import colorize_mask
+            f"""
+%%writefile /content/v4_gpu_api.py
+import gc, json, os, sys
+from pathlib import Path
+import torch
 
-app = FastAPI(title="FashionFit-PK Live Colab GPU API")
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+sys.path.insert(0, '/content')
+sys.path.insert(0, '/content/fashionfit_v4_pkg')
 
-def img_to_b64(im: Image.Image) -> str:
-    buf = io.BytesIO()
-    im.convert("RGB").save(buf, format="PNG")
-    return "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode("ascii")
+from v4_worker_core import create_worker_app, verify_checkpoint_dir
+from fashionfit_v4.protocol import build_mask
+from fashionfit_v4.segmentation import Parser, BASE, overlay
+from fashionfit_v4.catvton import CatVtonAdapter
+from fashionfit_v4.fashn import FashnVtonAdapter
 
-@app.get("/health")
-def health():
-    return {"status": "ok", "cuda": torch.cuda.is_available(), "gpu": torch.cuda.get_device_name(0) if torch.cuda.is_available() else "none"}
+EXPECTED_UNIVERSAL_MANIFEST = {json.dumps(EXPECTED_UNIVERSAL_MANIFEST, indent=4)}
 
-@app.post("/segment")
-async def segment(image: UploadFile = File(...)):
-    img = Image.open(io.BytesIO(await image.read())).convert("RGB")
-    seg = SegFormerClothesAdapter()
-    seg.load()
-    out = seg.predict(img)
-    mask = out["mask"]
-    rgb = np.asarray(img, dtype=np.uint8)
-    overlay = Image.fromarray((0.55 * rgb + 0.45 * colorize_mask(mask)).astype(np.uint8))
-    kurta_cutout = Image.fromarray(np.where((mask == 1)[:, :, None], rgb, 255).astype(np.uint8))
-    total = max(mask.size, 1)
-    ratios = {
-        "other": round(float(np.mean(mask == 0) * 100), 2),
-        "kurta_kameez": round(float(np.mean(mask == 1) * 100), 2),
-        "bottom": round(float(np.mean(mask == 2) * 100), 2),
-        "dupatta": round(float(np.mean(mask == 3) * 100), 2),
-    }
-    del seg; gc.collect(); torch.cuda.empty_cache()
-    return {
-        "model_id": "mattmdjaga/segformer_b2_clothes",
-        "overlay_image": img_to_b64(overlay),
-        "kurta_cutout_image": img_to_b64(kurta_cutout),
-        "class_coverage_pct": ratios,
-        "seconds": out["seconds"],
-        "peak_vram_mb": out["peak_vram_mb"],
-    }
+V4_ROOT = Path(os.environ['FF_V4_ROOT'])
+TOKEN = os.environ.get('FF_SERVER_TOKEN', '').strip()
+DEFAULT_PARSER = os.environ.get('FF_DEFAULT_PARSER', 'universal')
+UNIVERSAL_CKPT = V4_ROOT / '09_MODELS' / 'universal_b2' / 'best_checkpoint'
+PATHS = {{'baseline': BASE, 'universal': UNIVERSAL_CKPT}}
 
-def build_mode_mask(seg_map: np.ndarray, tryon_mode: str = "upper_body", preserve_dupatta: bool = True) -> np.ndarray:
-    h, w = seg_map.shape
-    upper = (seg_map == 1).astype(np.uint8)
-    lower = (seg_map == 2).astype(np.uint8)
-    dupatta = (seg_map == 3)
-    if tryon_mode == "flared_lehenga":
-        combined = np.clip(upper + lower, 0, 1).astype(np.uint8)
-        lower_rows = np.where(lower.any(axis=1))[0]
-        if len(lower_rows) > 0:
-            y_start, y_end = int(lower_rows[0]), int(lower_rows[-1])
-            span = max(1, y_end - y_start)
-            max_pad = max(1, int(w * 0.18))
-            flared = combined.copy()
-            for y in range(y_start, y_end + 1):
-                xs = np.where(combined[y] > 0)[0]
-                if len(xs) == 0:
-                    continue
-                pad = int(round(max_pad * ((y - y_start) / span)))
-                flared[y, max(0, int(xs[0]) - pad) : min(w - 1, int(xs[-1]) + pad) + 1] = 1
-            combined = flared
-        mask = combined
-    elif tryon_mode in ("full_outfit", "kids_ethnic", "cross_age"):
-        mask = np.clip(upper + lower, 0, 1).astype(np.uint8) if lower.any() else upper
-    else:
-        mask = upper
-    if preserve_dupatta:
-        mask[dupatta] = 0
-    return (mask * 255).astype(np.uint8)
+provenance = (
+    verify_checkpoint_dir(UNIVERSAL_CKPT, expected_manifest=EXPECTED_UNIVERSAL_MANIFEST)
+    if DEFAULT_PARSER != 'baseline'
+    else {{'files_verified': True, 'verification_status': 'pretrained_baseline', 'files': {{}}}}
+)
 
-@app.post("/vton")
-async def vton(
-    person_image: UploadFile = File(...),
-    garment_image: UploadFile = File(...),
-    model_id: str = Form("fashn_vton_1_5"),
-    category: str = Form("tops"),
-    garment_photo_type: str = Form("flat-lay"),
-    tryon_mode: str = Form("upper_body"),
-    person_age_group: str = Form("adult"),
-    preserve_dupatta: str = Form("true"),
-    seed: int = Form(42),
-):
-    p_img = Image.open(io.BytesIO(await person_image.read())).convert("RGB")
-    g_img = Image.open(io.BytesIO(await garment_image.read())).convert("RGB")
-    keep_dupatta = str(preserve_dupatta).lower() not in ("false", "0", "no")
+def _cleanup_gpu():
+    gc.collect()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
 
-    if model_id == "catvton":
-        seg = SegFormerClothesAdapter(); seg.load()
-        seg_map = seg.predict(p_img)["mask"]
-        m = build_mode_mask(seg_map, tryon_mode=tryon_mode, preserve_dupatta=keep_dupatta)
-        t_mask = Image.fromarray(m, mode="L")
-        del seg; gc.collect(); torch.cuda.empty_cache()
-        adapter = CatVtonAdapter(); adapter.load()
-        res = adapter.run_tryon(p_img, g_img, target_mask=t_mask, seed=seed)
-    else:
-        eff_cat = "one-pieces" if tryon_mode == "flared_lehenga" else category
-        adapter = FashnVtonAdapter(); adapter.load()
-        res = adapter.run_tryon(p_img, g_img, category=eff_cat, garment_photo_type=garment_photo_type, seed=seed)
-
-    b64 = img_to_b64(res["image"])
-    del adapter; gc.collect(); torch.cuda.empty_cache()
-    return {
-        "model_id": model_id,
-        "engine": "colab_gpu_live",
-        "tryon_mode": tryon_mode,
-        "person_age_group": person_age_group,
-        "result_image": b64,
-        "seconds": res["seconds"],
-        "peak_vram_mb": res["peak_vram_mb"],
-        "seed": seed,
-    }
+app = create_worker_app(
+    token=TOKEN,
+    default_parser=DEFAULT_PARSER,
+    checkpoint_provenance=provenance,
+    gpu_available_fn=torch.cuda.is_available,
+    gpu_name_fn=lambda: torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'unavailable',
+    parser_factory=lambda kind: Parser(PATHS[kind], kind),
+    vton_factory=lambda m: CatVtonAdapter() if m == 'catvton' else FashnVtonAdapter(),
+    mask_builder=build_mask,
+    overlay_builder=overlay,
+    cleanup_gpu_fn=_cleanup_gpu,
+    max_queue=2,
+)
 """
         ),
         code(
             """
-import subprocess, time, re
+import json, os, re, subprocess, time, urllib.request
 
-uvicorn_proc = subprocess.Popen(["uvicorn", "gpu_api:app", "--host", "0.0.0.0", "--port", "8000", "--app-dir", "/content"])
-time.sleep(3)
-tunnel = subprocess.Popen(
-    ["cloudflared", "tunnel", "--url", "http://localhost:8000"],
-    stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True
+uvicorn_proc = subprocess.Popen(
+    ['uvicorn', 'v4_gpu_api:app', '--host', '127.0.0.1', '--port', '8000', '--app-dir', '/content'],
+    stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
 )
+
+# Verify local worker /health BEFORE launching public tunnel
+ready_health = None
+for _ in range(30):
+    try:
+        with urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2) as r:
+            ready_health = json.loads(r.read().decode())
+            break
+    except Exception:
+        time.sleep(1)
+
+if not ready_health or not ready_health.get('files_verified'):
+    raise RuntimeError(f'Worker failed startup health check before tunnel: {ready_health}')
+
+print('Local Worker Health Verified:', json.dumps(ready_health, indent=2))
+
+tunnel = subprocess.Popen(
+    ['cloudflared', 'tunnel', '--url', 'http://127.0.0.1:8000'],
+    stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+)
+tunnel_url = None
 for line in tunnel.stdout:
-    m = re.search(r"https://[a-z0-9-]+\\.trycloudflare\\.com", line)
+    m = re.search(r'https://[a-z0-9-]+\\.trycloudflare\\.com', line)
     if m:
-        print("=" * 70)
-        print("LIVE COLAB GPU URL (paste into FashionFit-PK Web App):", m.group(0))
-        print("=" * 70)
+        tunnel_url = m.group(0)
         break
+
+if not tunnel_url:
+    raise RuntimeError('Cloudflare tunnel failed to emit a public URL. Re-run this cell.')
+
+print('=' * 72)
+print('LIVE V4 COLAB GPU URL:', tunnel_url)
+print('BEARER ACCESS TOKEN:  ', os.environ['FF_SERVER_TOKEN'])
+print('=' * 72)
+"""
+        ),
+        code(
+            """
+# Phase 4 Smoke Test & Machine-Readable Evidence Export (run after tunnel is live)
+import json, os, urllib.request
+from pathlib import Path
+
+headers = {'Authorization': 'Bearer ' + os.environ['FF_SERVER_TOKEN']}
+req_auth = urllib.request.Request('http://127.0.0.1:8000/auth/verify', headers=headers)
+auth_resp = json.loads(urllib.request.urlopen(req_auth, timeout=5).read().decode())
+health_resp = json.loads(urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=5).read().decode())
+
+evidence = {
+    'worker_core_sha256': '"""
+            + core_sha256
+            + """',
+    'code_zip_sha256': '"""
+            + EXPECTED_CODE_ZIP_SHA256
+            + """',
+    'auth_verify': auth_resp,
+    'health_before_inference': health_resp,
+}
+out_path = Path(os.environ['FF_V4_ROOT']) / '10_RUNS' / 'live_worker_smoke_evidence.json'
+out_path.write_text(json.dumps(evidence, indent=2), encoding='utf-8')
+print('Saved live worker startup evidence to:', out_path)
 """
         ),
     ],
@@ -201,4 +232,4 @@ for line in tunnel.stdout:
 }
 
 OUT_NB.write_text(json.dumps(nb, indent=2), encoding="utf-8")
-print("Wrote", OUT_NB)
+print(f"Wrote {OUT_NB} (worker_core_sha256={core_sha256})")

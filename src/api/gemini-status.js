@@ -1,20 +1,19 @@
-import { getGeminiKeyPool } from './_gemini.js'
+import { getGeminiConfig } from './_gemini.js'
 
 export default function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
-
-  const pool = getGeminiKeyPool()
-  const configured = pool.length > 0
+  const cfg = getGeminiConfig()
 
   return res.status(200).json({
-    configured,
-    key_pool_count: pool.length,
-    failover_enabled: pool.length > 1,
-    model: process.env.GEMINI_IMAGE_MODEL || 'gemini-2.5-flash-image',
-    stages: [
-      'person_studio_normalization',
-      'canonical_garment_extraction',
-      'three_view_studio',
-    ],
+    schema_version: 'v4.0',
+    provider: 'gemini_optional',
+    configured: cfg.configured,
+    enabled: cfg.enabled,
+    // Presence of an API key does NOT guarantee billing or runtime readiness.
+    ready: false,
+    readiness_note: cfg.enabled
+      ? 'Explicitly enabled by operator; runtime availability depends on provider quota/billing.'
+      : 'Disabled by default. Core try-on operates independently on the open V4 GPU backend.',
+    model: cfg.model,
   })
 }
